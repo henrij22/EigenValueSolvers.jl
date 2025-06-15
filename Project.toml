@@ -1,0 +1,13 @@
+name = "EigenValueSolvers"
+uuid = "61c3bbe5-5a69-4256-958a-2912b3f39d32"
+authors = ["Henrik Jakob <jakob@ibb.uni-stuttgart.de> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
