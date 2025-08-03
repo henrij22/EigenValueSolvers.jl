@@ -37,11 +37,11 @@ jobs:
           # For macOS, only allow arm64.
           - os: macOS-latest
             arch: x64
-        #   # For ubuntu and windows, only allow x64.
-        #   - os: ubuntu-latest
-        #     arch: arm64
-        #   - os: windows-latest
-        #     arch: arm64
+          # For ubuntu and windows, only allow x64.
+          - os: ubuntu-latest
+            arch: arm64
+          - os: windows-latest
+            arch: arm64
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
