@@ -1,7 +1,7 @@
 name = "EigenValueSolvers"
 uuid = "61c3bbe5-5a69-4256-958a-2912b3f39d32"
-authors = ["Henrik Jakob <jakob@ibb.uni-stuttgart.de> and contributors"]
 version = "0.1.2"
+authors = ["Henrik Jakob <jakob@ibb.uni-stuttgart.de> and contributors"]
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
@@ -18,7 +18,7 @@ ArnoldiMethod = "0.4"
 Arpack = "0.5"
 KrylovKit = "0.9.5, 0.10"
 LinearMaps = "3"
-Parameters = "0.12"
+Parameters = "0.12, 0.13"
 julia = "1.10"
 
 [extras]
