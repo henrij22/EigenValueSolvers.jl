@@ -11,6 +11,7 @@ EigenValueSolvers
 gev
 geteigenvector
 getsolver
+supportedtargets
 ```
 
 ## Not exported
@@ -22,6 +23,7 @@ not part of the public interface, but they are what a new solver has to hook int
 TARGETS
 EigenValueSolvers.eigsolve
 EigenValueSolvers.geneigsolve
+EigenValueSolvers.checktarget
 EigenValueSolvers.sortselect
 EigenValueSolvers.ordering
 EigenValueSolvers.backend

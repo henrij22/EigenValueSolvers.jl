@@ -9,4 +9,6 @@
 ./ext/EigenValueSolversArpackExt.jl
 ./ext/EigenValueSolversArnoldiMethodExt.jl
 ./ext/EigenValueSolversKrylovKitExt.jl
+./ext/EigenValueSolversIterativeSolversExt.jl
+./ext/EigenValueSolversGenericArpackExt.jl
 ./.github/workflows/*.yml

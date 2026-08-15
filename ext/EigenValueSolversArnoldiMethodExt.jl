@@ -2,7 +2,7 @@ module EigenValueSolversArnoldiMethodExt
 
 using ArgCheck: @argcheck
 using EigenValueSolvers: EigenValueSolvers, EigArnoldiMethod, sortselect
-using LinearAlgebra: LinearAlgebra, lu, ldiv!, mul!
+using LinearAlgebra: LinearAlgebra, ldiv!, mul!
 
 import ArnoldiMethod
 
@@ -56,7 +56,7 @@ function EigenValueSolvers.eigsolve(l::EigArnoldiMethod, J, nev::Int; kwargs...)
         # (sigma⋅I - J)⁻¹ has the eigenvalues μ = 1 / (sigma - λ), so the eigenvalues closest
         # to `sigma` are the dominant ones and `:LM` is the right target here.
         M = l.sigma * LinearAlgebra.I - J
-        op = ShiftInvert(lu(M), nothing, size(J, 1), eltype(M)[])
+        op = ShiftInvert(l.factorize(M), nothing, size(J, 1), eltype(M)[])
         decomp, history = ArnoldiMethod.partialschur(op; nev = n, which = :LM, v1 = l.x₀, l.kwargs...)
         μ, ϕ = ArnoldiMethod.partialeigen(decomp)
         λ = @. l.sigma - inv(μ)
@@ -79,7 +79,7 @@ function EigenValueSolvers.geneigsolve(l::EigArnoldiMethod, A, B, nev::Int; kwar
     σ = isnothing(l.sigma) ? zero(eltype(A)) : l.sigma
     M = A - σ * B
     T = eltype(M)
-    op = ShiftInvert(lu(M), B, size(A, 1), Vector{T}(undef, size(A, 1)))
+    op = ShiftInvert(l.factorize(M), B, size(A, 1), Vector{T}(undef, size(A, 1)))
 
     decomp, history = ArnoldiMethod.partialschur(op; nev = n, which = :LM, v1 = l.x₀, l.kwargs...)
     μ, ϕ = ArnoldiMethod.partialeigen(decomp)

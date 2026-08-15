@@ -13,25 +13,33 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 [weakdeps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
+GenericArpack = "408c25d7-97fa-4992-8bd9-ce15f1a09fe9"
+IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 
 [extensions]
 EigenValueSolversArnoldiMethodExt = "ArnoldiMethod"
 EigenValueSolversArpackExt = "Arpack"
+EigenValueSolversGenericArpackExt = "GenericArpack"
+EigenValueSolversIterativeSolversExt = "IterativeSolvers"
 EigenValueSolversKrylovKitExt = "KrylovKit"
 
 [compat]
 ArgCheck = "2"
 ArnoldiMethod = "0.4"
 Arpack = "0.5"
+GenericArpack = "0.2"
+IterativeSolvers = "0.9"
 KrylovKit = "0.9.5, 0.10"
 LinearAlgebra = "1"
 julia = "1.10"
 
 [extras]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+GenericSchur = "c145ed77-6b09-5dd9-b285-bf645a82121e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["ArnoldiMethod", "Arpack", "DelimitedFiles", "KrylovKit", "SparseArrays", "Test"]
+test = ["ArnoldiMethod", "Arpack", "DelimitedFiles", "GenericArpack", "GenericSchur", "IterativeSolvers", "KrylovKit", "Random", "SparseArrays", "Test"]

@@ -24,18 +24,25 @@ Pkg.add("EigenValueSolvers")
 ```
 
 The backends are *weak* dependencies, loaded through package extensions. Only
-[`DefaultEig`](@ref) works out of the box; for the other solvers the corresponding package
+[`EigDefault`](@ref) works out of the box; for the other solvers the corresponding package
 has to be installed and loaded:
 
-| solver                    | requires                    |
-|:--------------------------|:----------------------------|
-| [`DefaultEig`](@ref)      | –                           |
-| [`EigArpack`](@ref)       | `using Arpack`              |
-| [`EigArnoldiMethod`](@ref)| `using ArnoldiMethod`       |
-| [`EigKrylovKit`](@ref)    | `using KrylovKit`           |
+| solver                      | requires                 | problems                        |
+|:----------------------------|:-------------------------|:--------------------------------|
+| [`EigDefault`](@ref)        | –                        | small, dense                    |
+| [`EigArpack`](@ref)         | `using Arpack`           | large sparse, shift-invert      |
+| [`EigArnoldiMethod`](@ref)  | `using ArnoldiMethod`    | large sparse, shift-invert      |
+| [`EigKrylovKit`](@ref)      | `using KrylovKit`        | matrix-free                     |
+| [`EigLOBPCG`](@ref)         | `using IterativeSolvers` | large sparse symmetric, no factorization |
+| [`EigGenericArpack`](@ref)  | `using GenericArpack`    | symmetric, non-`Float64` element types |
 
 Using a solver whose backend is not loaded raises an error that says which package is
 missing.
+
+[GenericSchur.jl](https://github.com/RalphAS/GenericSchur.jl) is worth knowing about even
+though this package needs no extension for it: it adds `LinearAlgebra.eigen` methods for
+element types LAPACK does not handle, so loading it makes [`EigDefault`](@ref) work on
+`BigFloat` or `Double64` matrices without any further ado.
 
 ## Usage
 
@@ -47,7 +54,7 @@ julia> using EigenValueSolvers
 
 julia> J = [4.0 1.0 0.0; 1.0 3.0 1.0; 0.0 1.0 2.0];
 
-julia> solver = DefaultEig(:LR);
+julia> solver = EigDefault(:LR);
 
 julia> values, vectors, converged, numops = solver(J, 2);
 
@@ -96,6 +103,18 @@ which order it is returned:
 Every solver applies this ordering itself, so the results of two different solvers with the
 same `which` are directly comparable.
 
+Not every backend can honour every target: a solver restricted to symmetric problems has no
+use for `:LI`/`:SI`, and one that selects purely by algebraic value cannot express
+`:LM`/`:SM`. Constructing a solver with an unsupported target throws, and
+[`supportedtargets`](@ref) says up front what a given solver accepts:
+
+```jldoctest
+julia> using EigenValueSolvers
+
+julia> supportedtargets(EigLOBPCG)
+(:LR, :SR)
+```
+
 ## Generalized eigenvalue problems
 
 `A⋅x = λ⋅B⋅x` is solved with [`gev`](@ref), which returns the same four elements:
@@ -107,7 +126,7 @@ julia> A = [4.0 1.0 0.0; 1.0 3.0 1.0; 0.0 1.0 2.0];
 
 julia> B = [2.0 0.0 0.0; 0.0 2.0 0.0; 0.0 0.0 2.0];
 
-julia> values, vectors, converged, numops = gev(DefaultEig(:SR), A, B, 1);
+julia> values, vectors, converged, numops = gev(EigDefault(:SR), A, B, 1);
 
 julia> round.(values; digits = 4)
 1-element Vector{Float64}:

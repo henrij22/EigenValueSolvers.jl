@@ -1,7 +1,7 @@
 using Documenter, DocumenterCodeBlocks, EigenValueSolvers
 
 # Load the weak dependencies so that the package extensions are available
-using ArnoldiMethod, Arpack, KrylovKit
+using ArnoldiMethod, Arpack, GenericArpack, IterativeSolvers, KrylovKit
 
 const liveserver = "liveserver" in ARGS
 

@@ -8,8 +8,10 @@
 
 A thin, uniform interface around the eigenvalue solvers of `LinearAlgebra`,
 [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl),
-[ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl) and
-[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
+[ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl),
+[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl),
+[IterativeSolvers.jl](https://github.com/JuliaLinearAlgebra/IterativeSolvers.jl) and
+[GenericArpack.jl](https://github.com/dgleich/GenericArpack.jl).
 
 All solvers share the same call signature, the same `which` targets and the same return
 values, so that a solver can be swapped for another one without touching the calling code.
@@ -26,12 +28,17 @@ v = geteigenvector(solver, vectors, 1)
 The backends are *weak* dependencies loaded through package extensions, so only the solvers
 you actually use are installed and loaded:
 
-| solver             | requires              |
-|:-------------------|:----------------------|
-| `DefaultEig`       | –                     |
-| `EigArpack`        | `using Arpack`        |
-| `EigArnoldiMethod` | `using ArnoldiMethod` |
-| `EigKrylovKit`     | `using KrylovKit`     |
+| solver             | requires                 | problems                                 |
+|:-------------------|:-------------------------|:-----------------------------------------|
+| `EigDefault`       | –                        | small, dense                             |
+| `EigArpack`        | `using Arpack`           | large sparse, shift-invert               |
+| `EigArnoldiMethod` | `using ArnoldiMethod`    | large sparse, shift-invert               |
+| `EigKrylovKit`     | `using KrylovKit`        | matrix-free                              |
+| `EigLOBPCG`        | `using IterativeSolvers` | large sparse symmetric, no factorization |
+| `EigGenericArpack` | `using GenericArpack`    | symmetric, non-`Float64` element types   |
+
+Loading [GenericSchur.jl](https://github.com/RalphAS/GenericSchur.jl) additionally makes
+`EigDefault` work on `BigFloat` matrices, without this package needing an extension for it.
 
 See the [documentation](https://henrij22.github.io/EigenValueSolvers.jl/stable) for details.
 

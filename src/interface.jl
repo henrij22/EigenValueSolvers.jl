@@ -32,7 +32,7 @@ abstract type AbstractEigenSolver end
     AbstractDirectEigenSolver <: AbstractEigenSolver
 
 Solvers that compute the full spectrum and then select `nev` eigenpairs from it, e.g.
-[`DefaultEig`](@ref).
+[`EigDefault`](@ref).
 """
 abstract type AbstractDirectEigenSolver <: AbstractEigenSolver end
 
@@ -83,7 +83,42 @@ function ordering(which::Symbol)
     throw(ArgumentError("unknown target `which = :$which`, must be one of $TARGETS"))
 end
 
-checktarget(which::Symbol) = (ordering(which); return which)
+"""
+    supportedtargets(l::AbstractEigenSolver) -> Tuple{Vararg{Symbol}}
+    supportedtargets(T::Type{<:AbstractEigenSolver}) -> Tuple{Vararg{Symbol}}
+
+The subset of [`TARGETS`](@ref) that `l` can handle.
+
+Most solvers support all of them, but a backend restricted to symmetric problems has no use
+for `:LI`/`:SI`, and one that selects purely by algebraic value cannot express `:LM`/`:SM`.
+Constructing a solver with an unsupported target throws, so this is the way to find out up
+front which targets a solver accepts.
+
+```jldoctest
+julia> supportedtargets(EigDefault)
+(:LM, :SM, :LR, :SR, :LI, :SI)
+
+julia> supportedtargets(EigLOBPCG)
+(:LR, :SR)
+```
+"""
+supportedtargets(::Type{<:AbstractEigenSolver}) = TARGETS
+supportedtargets(l::AbstractEigenSolver) = supportedtargets(typeof(l))
+
+"""
+    checktarget(T::Type{<:AbstractEigenSolver}, which::Symbol) -> Symbol
+
+Check that `which` is a valid target at all and that `T` supports it, and return it. This is
+what the solver constructors validate their `which` argument with.
+"""
+function checktarget(T::Type{<:AbstractEigenSolver}, which::Symbol)
+    ordering(which) # throws if `which` is not a target at all
+    targets = supportedtargets(T)
+    which in targets || throw(
+        ArgumentError("$(nameof(T)) does not support the target `:$which`, it supports $targets")
+    )
+    return which
+end
 
 # Eigenvectors are stored either as the columns of a matrix or as a vector of vectors.
 selectvectors(ϕ::AbstractMatrix, idx) = ϕ[:, idx]
