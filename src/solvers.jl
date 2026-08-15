@@ -204,8 +204,16 @@ of memory, especially in combination with a preconditioner `P`.
 Because LOBPCG selects eigenvalues by algebraic value, only the targets `:LR` and `:SR` are
 supported, see [`supportedtargets`](@ref).
 
-The matrix has to be at least three times as large as `nev`, otherwise LOBPCG is unstable
-and throws; use [`EigDefault`](@ref) for problems that small.
+The matrix has to be at least three times as large as the block size (`nev`, or the width of
+`X₀`), otherwise LOBPCG is unstable and throws; use [`EigDefault`](@ref) for problems that
+small.
+
+Two numerical caveats are worth knowing about. Asking for a very tight `tol` is
+counterproductive: below roughly `1e-9` the Rayleigh-Ritz subproblem tends to fail with a
+`PosDefException` once the search space becomes numerically rank deficient. And without an
+explicit `X₀`, LOBPCG starts from a `rand` block whose columns all cluster around the
+all-ones vector, which is poorly conditioned and makes the iteration depend on the global
+random stream; pass `X₀` when you want a reproducible run.
 
 Supports the generalized eigenvalue problem through [`gev`](@ref).
 """

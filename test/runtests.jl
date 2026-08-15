@@ -9,7 +9,6 @@ using GenericSchur
 using IterativeSolvers
 using KrylovKit
 using LinearAlgebra
-using Random
 using SparseArrays
 
 # A stiffness matrix with six zero eigenvalues (the rigid body modes) and an otherwise
@@ -24,6 +23,17 @@ struct UnbackedSolver <: AbstractEigenSolver end
 # of such a pair. Comparing element by element against `REFERENCE` would therefore be flaky,
 # so we only check that every computed eigenvalue is in the spectrum.
 inspectrum(λ) = all(λᵢ -> minimum(abs, REFERENCE .- λᵢ) ≤ 1.0e-6 * max(1, abs(λᵢ)), real.(λ))
+
+# A dense symmetric matrix with exactly the prescribed spectrum, built from a Householder
+# reflector. Doing this instead of transforming with a random orthogonal matrix keeps the
+# tests reproducible: the random stream is stable neither across Julia versions nor across
+# the different BLAS implementations of the CI runners, and LOBPCG in particular is
+# sensitive enough to that to fail on one platform and pass on another.
+function withspectrum(spectrum, seedvector)
+    w = normalize(collect(float.(seedvector)))
+    Q = I - 2 * w * transpose(w)
+    return Matrix(Symmetric(Q * Diagonal(collect(float.(spectrum))) * transpose(Q)))
+end
 
 @testset "EigenValueSolvers.jl" begin
     @testset "targets" begin
@@ -173,7 +183,7 @@ inspectrum(λ) = all(λᵢ -> minimum(abs, REFERENCE .- λᵢ) ≤ 1.0e-6 * max(
         A = Float64[4 1 0; 1 3 1; 0 1 2]
         exact = sort(eigvals(Symmetric(A)); rev = true)
 
-        l = EigKrylovKit(; which = :LR, ishermitian = true, tol = 1.0e-12, x₀ = rand(3))
+        l = EigKrylovKit(; which = :LR, ishermitian = true, tol = 1.0e-12, x₀ = [0.3, 0.7, 0.5])
         λ, ϕ, converged, _ = l(x -> A * x, 2)
 
         @test converged
@@ -193,7 +203,7 @@ inspectrum(λ) = all(λᵢ -> minimum(abs, REFERENCE .- λᵢ) ≤ 1.0e-6 * max(
         exact = sort(eigvals(A, B))
 
         l = EigKrylovKit(;
-            which = :SR, ishermitian = true, isposdef = true, tol = 1.0e-12, x₀ = rand(3)
+            which = :SR, ishermitian = true, isposdef = true, tol = 1.0e-12, x₀ = [0.3, 0.7, 0.5]
         )
         λ, ϕ, converged, _ = gev(l, x -> A * x, x -> B * x, 1)
 
@@ -209,19 +219,27 @@ inspectrum(λ) = all(λᵢ -> minimum(abs, REFERENCE .- λᵢ) ≤ 1.0e-6 * max(
     end
 
     @testset "symmetric solvers" begin
-        # LOBPCG needs the matrix to be at least three times the block size, and it wants a
-        # well separated spectrum to converge quickly, so we build one explicitly.
-        Random.seed!(42)
+        # LOBPCG needs the matrix to be at least three times the block size.
         n = 60
-        Q = qr(randn(n, n)).Q
-        spectrum = collect(range(1.0; step = 1.0, length = n))
-        A = Matrix(Symmetric(Q * Diagonal(spectrum) * transpose(Q)))
-        B = Matrix(Symmetric(Q * Diagonal(fill(2.0, n)) * transpose(Q)))
         nev = 3
+        spectrum = collect(1.0:n)
+        A = withspectrum(spectrum, sqrt.(1.0:n))
+        B = withspectrum(range(1.0, 3.0; length = n), n:-1.0:1)
+        exactgen = sort(eigvals(A, B))
 
-        @testset "standard, $(l.which)" for l in (
-                EigLOBPCG(; which = :SR, tol = 1.0e-9, maxiter = 500),
-                EigLOBPCG(; which = :LR, tol = 1.0e-9, maxiter = 500),
+        # A deterministic, well conditioned starting block. Without one, LOBPCG draws a
+        # `rand` (not `randn`) block, whose columns all cluster around the all-ones vector.
+        X₀ = [cospi(i * j / n) for i in 1:n, j in 1:nev]
+
+        # `tol` stays clear of 1e-9, where LOBPCG's Rayleigh-Ritz subproblem starts to fail
+        # with a `PosDefException` once the search space becomes numerically rank deficient.
+        lobpcgsolver(; kwargs...) = EigLOBPCG(; tol = 1.0e-8, maxiter = 500, kwargs...)
+
+        @testset "standard, $(nameof(typeof(l))) $(l.which)" for l in (
+                lobpcgsolver(; which = :SR),
+                lobpcgsolver(; which = :LR),
+                lobpcgsolver(; which = :SR, X₀ = X₀),
+                lobpcgsolver(; which = :LR, X₀ = X₀),
                 EigGenericArpack(; which = :SR),
                 EigGenericArpack(; which = :LR),
                 EigGenericArpack(; which = :LM),
@@ -230,41 +248,49 @@ inspectrum(λ) = all(λᵢ -> minimum(abs, REFERENCE .- λᵢ) ≤ 1.0e-6 * max(
             by, rev = EigenValueSolvers.ordering(l.which)
             exact = sort(spectrum; by = by, rev = rev)[1:nev]
 
+            # the return types are part of the contract, and LOBPCG reports these
+            # differently depending on whether it was given a starting block
+            @test converged isa Bool
+            @test numops isa Integer
+
             @test converged
-            @test length(λ) == nev
             @test numops ≥ 1
-            @test λ ≈ exact
+            @test length(λ) == nev
+            @test isapprox(λ, exact; rtol = 1.0e-6)
             for i in 1:nev
                 v = geteigenvector(l, ϕ, i)
-                @test A * v ≈ λ[i] * v
+                @test isapprox(A * v, λ[i] * v; rtol = 1.0e-6)
             end
         end
 
         @testset "generalized, $(nameof(typeof(l)))" for l in (
-                EigLOBPCG(; which = :SR, tol = 1.0e-9, maxiter = 500),
+                lobpcgsolver(; which = :SR),
+                lobpcgsolver(; which = :SR, X₀ = X₀),
                 EigGenericArpack(; which = :SR),
             )
-            λ, ϕ, converged, _ = gev(l, A, B, nev)
+            λ, ϕ, converged, numops = gev(l, A, B, nev)
+
+            @test converged isa Bool
+            @test numops isa Integer
             @test converged
-            @test λ ≈ sort(spectrum)[1:nev] ./ 2
+            @test isapprox(λ, exactgen[1:nev]; rtol = 1.0e-6)
             for i in 1:nev
                 v = geteigenvector(l, ϕ, i)
-                @test A * v ≈ λ[i] * (B * v)
+                @test isapprox(A * v, λ[i] * (B * v); rtol = 1.0e-6)
             end
         end
 
         # LOBPCG is unstable for matrices that are small relative to the block size
-        @test_throws ArgumentError EigLOBPCG()(Matrix(Symmetric(rand(3, 3))), 2)
+        @test_throws ArgumentError EigLOBPCG()(withspectrum(1.0:3.0, 1.0:3.0), 2)
+        @test_throws ArgumentError EigLOBPCG(; X₀ = ones(6, 3))(withspectrum(1.0:6.0, 1.0:6.0), 1)
     end
 
     @testset "custom factorization" begin
         # `factorize` only has to return something supporting `ldiv!`, so a Cholesky
         # factorization works for the positive definite shifted matrix below.
-        Random.seed!(7)
         n = 40
-        Q = qr(randn(n, n)).Q
-        spectrum = collect(range(1.0; step = 1.0, length = n))
-        A = Matrix(Symmetric(Q * Diagonal(spectrum) * transpose(Q)))
+        spectrum = collect(1.0:n)
+        A = withspectrum(spectrum, sqrt.(1.0:n))
         nev = 3
 
         # `cholesky` needs (sigma⋅I - A) to be positive definite, so the shift has to sit
