@@ -1,0 +1,14 @@
+./LICENSE
+./README.md
+./CHANGELOG.md
+./Project.toml
+./Manifest.toml
+./docs/Project.toml
+./docs/Manifest.toml
+./src/EigenValueSolvers.jl
+./ext/EigenValueSolversArpackExt.jl
+./ext/EigenValueSolversArnoldiMethodExt.jl
+./ext/EigenValueSolversKrylovKitExt.jl
+./ext/EigenValueSolversIterativeSolversExt.jl
+./ext/EigenValueSolversGenericArpackExt.jl
+./.github/workflows/*.yml

@@ -1,0 +1,16 @@
+[deps]
+ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
+Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterCodeBlocks = "b6400b83-267f-4b55-9fd8-bffc853bdfd8"
+EigenValueSolvers = "61c3bbe5-5a69-4256-958a-2912b3f39d32"
+GenericArpack = "408c25d7-97fa-4992-8bd9-ce15f1a09fe9"
+GenericSchur = "c145ed77-6b09-5dd9-b285-bf645a82121e"
+IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
+KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[compat]
+Documenter = "1"
+DocumenterCodeBlocks = "1"
