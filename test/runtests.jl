@@ -153,6 +153,30 @@ inspectrum(λ) = all(λᵢ -> minimum(abs, REFERENCE .- λᵢ) ≤ 1.0e-6 * max(
         @test ϕ isa AbstractVector{<:AbstractVector}
         v = geteigenvector(l, ϕ, 1)
         @test A * v ≈ λ[1] * v
+
+        # without a starting vector there is nothing for KrylovKit to iterate on
+        @test_throws ArgumentError EigKrylovKit(; ishermitian = true)(x -> A * x, 2)
+    end
+
+    @testset "matrix-free generalized problem" begin
+        A = Float64[4 1 0; 1 3 1; 0 1 2]
+        B = Float64[2 0 0; 0 2 0; 0 0 2]
+        exact = sort(eigvals(A, B))
+
+        l = EigKrylovKit(;
+            which = :SR, ishermitian = true, isposdef = true, tol = 1.0e-12, x₀ = rand(3)
+        )
+        λ, ϕ, converged, _ = gev(l, x -> A * x, x -> B * x, 1)
+
+        @test converged
+        @test real.(λ) ≈ exact[1:1]
+        @test ϕ isa AbstractVector{<:AbstractVector}
+        v = geteigenvector(l, ϕ, 1)
+        @test A * v ≈ λ[1] * (B * v)
+
+        @test_throws ArgumentError gev(
+            EigKrylovKit(; ishermitian = true, isposdef = true), x -> A * x, x -> B * x, 1
+        )
     end
 
     @testset "missing backend" begin

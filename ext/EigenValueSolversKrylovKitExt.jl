@@ -15,14 +15,18 @@ function kwargs(l::EigKrylovKit)
     )
 end
 
+function needsstartvector(name)
+    return throw(
+        ArgumentError("EigKrylovKit needs a starting vector `x₀` if `$name` is not an `AbstractMatrix`")
+    )
+end
+
 function EigenValueSolvers.eigsolve(l::EigKrylovKit, J, nev::Int; kw...)
     if J isa AbstractMatrix && isnothing(l.x₀)
         n = min(nev, size(J, 1))
         λ, ϕ, info = KrylovKit.eigsolve(J, n, l.which; kwargs(l)...)
     else
-        isnothing(l.x₀) && throw(
-            ArgumentError("EigKrylovKit needs a starting vector `x₀` if `J` is not an `AbstractMatrix`")
-        )
+        isnothing(l.x₀) && needsstartvector("J")
         n = min(nev, length(l.x₀))
         λ, ϕ, info = KrylovKit.eigsolve(J, l.x₀, n, l.which; kwargs(l)...)
     end
@@ -35,8 +39,18 @@ function EigenValueSolvers.eigsolve(l::EigKrylovKit, J, nev::Int; kw...)
 end
 
 function EigenValueSolvers.geneigsolve(l::EigKrylovKit, A, B, nev::Int; kw...)
-    n = min(nev, size(A, 1))
-    λ, ϕ, info = KrylovKit.geneigsolve((A, B), n, l.which; isposdef = l.isposdef, kwargs(l)...)
+    kws = (isposdef = l.isposdef, kwargs(l)...)
+
+    # As for the standard problem, `A` and `B` may be arbitrary operators, in which case
+    # KrylovKit cannot generate a starting vector itself and `x₀` has to be supplied.
+    if A isa AbstractMatrix && isnothing(l.x₀)
+        n = min(nev, size(A, 1))
+        λ, ϕ, info = KrylovKit.geneigsolve((A, B), n, l.which; kws...)
+    else
+        isnothing(l.x₀) && needsstartvector("A")
+        n = min(nev, length(l.x₀))
+        λ, ϕ, info = KrylovKit.geneigsolve((A, B), l.x₀, n, l.which; kws...)
+    end
 
     info.converged < n &&
         @warn "only $(info.converged) of the $n requested eigenvalues converged using KrylovKit.geneigsolve"

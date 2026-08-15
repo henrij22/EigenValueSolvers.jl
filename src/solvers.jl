@@ -67,7 +67,7 @@ backend(::EigArpack) = :Arpack
 
 Iterative eigen solver based on
 [ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl). Requires
-`using ArnoldiMethod` (and, for `sigma !== nothing`, `using LinearMaps`).
+`using ArnoldiMethod`.
 
 If `sigma` is given, the shift-invert method `(sigma⋅I - J)⁻¹` is used and the `nev`
 eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
@@ -111,7 +111,8 @@ supplied. The eigenvectors are then returned as a vector of vectors, use
 [`geteigenvector`](@ref) to access them.
 
 Supports the generalized eigenvalue problem through [`gev`](@ref), which requires `B` to be
-positive definite.
+positive definite and `ishermitian` and `isposdef` to be set. `A` and `B` may be arbitrary
+operators there as well, again provided that `x₀` is supplied.
 
 See the fields below for the available keyword arguments.
 """
