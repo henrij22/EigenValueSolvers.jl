@@ -52,7 +52,7 @@ Pkg.add("EigenValueSolvers")
 ## Development
 
 Development started well before the advent of agent coding, where I was inspired by the EigenValue solver interface of
-[BifurcationKit.jl](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl),
+[BifurcationKit.jl](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl) 
 (released under the MIT "Expat" License).
 Now with agents, I could tidy up the package, add more solvers and fix long-standing bugs and inconsistencies.
 
