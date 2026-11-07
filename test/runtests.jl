@@ -380,12 +380,15 @@ end
             @test Ks * ϕ[:, 1] ≈ λ[1] * (Bi * ϕ[:, 1])
         end
 
+        Bs = Matrix(Diagonal([i == 1 ? 0.0 : -1.0 for i in 1:n]))
+        @test_throws ArgumentError gev(EigArpack(nothing, :LR), Ks, Bs, 3)
+
         # nonsymmetric `A` with a shift, and complex matrices
         B = Matrix(Diagonal(1.0 .+ (1:n) ./ n))
         zs = [complex(0.5k, (-1)^k * (0.2k + 0.01k^2)) for k in 1:n]
         Vc = Matrix(qr(complex.(cos.((1:n) * (1:n)'), sin.((1:n) * (1:n)'))).Q)
         Ac = B * (Vc * Diagonal(zs) * Vc')
-        An = A[1:n, 1:n]
+        An = A
         for M in (An, Ac)
             exact = eigvals(M, B)
             λ, _, converged, _ = gev(EigArpack(4.2, :LR; maxiter = 1000), M, B, 3)

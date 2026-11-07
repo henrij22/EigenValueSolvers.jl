@@ -2,7 +2,7 @@ module EigenValueSolversArpackExt
 
 using ArgCheck: @argcheck
 using EigenValueSolvers: EigenValueSolvers, EigArpack, ShiftInvert, sortselect
-using LinearAlgebra: LinearAlgebra, isposdef, issymmetric, lu
+using LinearAlgebra: LinearAlgebra, isposdef, issuccess, issymmetric, lu
 
 import Arpack
 
@@ -37,7 +37,9 @@ end
 # The generalized modes of ARPACK need a positive definite `B`, so solve B⁻¹A⋅x = λ⋅x instead.
 function inverseB(A, B, which::Symbol, nev::Int, kwargs)
     n = size(A, 1)
-    op = ShiftInvert(lu(B), A, n, Vector{promote_type(eltype(A), eltype(B))}(undef, n))
+    F = lu(B; check = false)
+    issuccess(F) || throw(ArgumentError("EigArpack: `B` is singular, use a shift `sigma`"))
+    op = ShiftInvert(F, A, n, Vector{promote_type(eltype(A), eltype(B))}(undef, n))
     λ, ϕ, nconv, _, nmult = Arpack.eigs(op; nev = nev, which = which, kwargs...)
     return realify(λ, ϕ, A, B)..., nconv, nmult
 end

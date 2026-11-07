@@ -51,11 +51,13 @@ For real problems, `:LI`/`:SI` throw if all eigenvalues are real, i.e. for a sym
 (with positive definite `B` if generalized), and they need `2nev ≤ n - 2`.
 
 The eigenvalues are real for symmetric problems, also for generalized ones with a shift if `B`
-is positive definite. Otherwise they are complex, as for any nonsymmetric problem in ARPACK.
+is positive definite. For other real problems they are real if all computed ones are, and complex
+otherwise, so the element type can depend on the data.
 
 Symmetry and definiteness are tested exactly (`issymmetric`, `isposdef`), so matrices that are
 symmetric only up to roundoff are treated as nonsymmetric. If `B` is not positive definite,
-B⁻¹A is solved instead, since ARPACK's generalized modes require it.
+B⁻¹A is solved instead, since ARPACK's generalized modes require it. This throws if `B` is
+singular, use a shift then.
 
 Additional `kwargs` are forwarded to `Arpack.eigs`, except for `nev`, `ritzvec` and
 `explicittransform`, which are set by the solver.
