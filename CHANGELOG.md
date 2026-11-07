@@ -12,12 +12,18 @@
   - Generalized problems with a shift `sigma`: `Arpack.eigs(A, B; sigma, which = :LM)`
     returns the eigenvalues *farthest* from `sigma`, so `gev` computed the wrong part of the
     spectrum. The shift-invert transformation is now done explicitly, which also works for
-    an indefinite `B`.
+    an indefinite `B`. For a symmetric `A` and a positive definite `B` ARPACK's symmetric
+    mode is still used and the eigenvalues are real.
+  - `:LI`/`:SI` of a generalized problem with a symmetric `A` and an indefinite `B`, which has
+    complex eigenvalues, are computed instead of rejected. Complex shifts for real problems and
+    `:LI`/`:SI` with `2nev > n - 2`, which can return a wrong eigenvalue, throw a clear error.
+  - `sigma` given both positionally and as a keyword throws.
   - `EigArpack(which = :SR)` passed `which` on to `Arpack.eigs` but kept `:LR` as the
     solver's own target, so the result was sorted the wrong way round. `sigma` and `which`
     are now also accepted as keywords.
-- `EigArpack`, `EigArnoldiMethod` and `EigGenericArpack` throw if a forwarded keyword is one
-  the package sets itself (`nev`, `v1`, `stats`, `ritzvec`), instead of silently overriding it.
+- `EigArpack` (`nev`, `ritzvec`, `explicittransform`), `EigArnoldiMethod` (`nev`, `v1`) and
+  `EigGenericArpack` (`stats`, `ritzvec`) throw if a forwarded keyword is one the package sets
+  itself, instead of silently overriding it.
 
 ## v0.2.0
 

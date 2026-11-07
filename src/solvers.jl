@@ -37,15 +37,24 @@ end
 Iterative eigen solver based on [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl).
 Requires `using Arpack`.
 
+`sigma` and `which` can be given positionally or as keywords, but not both.
+
 If `sigma` is given, the shift-invert method `(J - sigma⋅I)⁻¹` is used and the `nev`
 eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
-which they are returned. Without a shift, `which` selects the eigenvalues as documented in
-[`TARGETS`](@ref). `:LI`/`:SI` throw for real symmetric problems, whose eigenvalues are all
-real. Without a shift, ARPACK converges poorly for the smallest eigenvalues (`:SM`, and `:SR`
-for generalized problems). Use a shift instead, e.g. `EigArpack(; sigma = 0.0, which = :SR)`,
-or a slightly negative one for a stiffness matrix with rigid body modes.
+which they are returned. `EigArpack(; sigma = 0.0, which = :SR)` therefore gives the smallest
+eigenvalues only if the spectrum is positive, e.g. for a stiffness matrix. Use a slightly
+negative shift if it has rigid body modes. Without a shift, `which` selects the eigenvalues as
+documented in [`TARGETS`](@ref), but ARPACK converges poorly for the smallest ones (`:SM`, and
+`:SR` for generalized problems), so prefer a shift for them.
 
-Additional `kwargs` are forwarded to `Arpack.eigs`.
+For real problems, `:LI`/`:SI` throw if all eigenvalues are real, i.e. for a symmetric problem
+(with positive definite `B` if generalized), and they need `2nev ≤ n - 2`.
+
+The eigenvalues are real for symmetric problems, also for generalized ones with a shift if `B`
+is positive definite. Otherwise they are complex, as for any nonsymmetric problem in ARPACK.
+
+Additional `kwargs` are forwarded to `Arpack.eigs`, except for `nev`, `ritzvec` and
+`explicittransform`, which are set by the solver.
 
 Supports the generalized eigenvalue problem through [`gev`](@ref).
 """
@@ -60,8 +69,14 @@ struct EigArpack{Tsigma, Tkw} <: AbstractIterativeEigenSolver
     kwargs::Tkw
 end
 
-function EigArpack(s = nothing, w::Symbol = :LR; sigma = s, which::Symbol = w, kwargs...)
-    return EigArpack(sigma, checktarget(EigArpack, which), checkreserved(EigArpack, kwargs, (:nev, :ritzvec)))
+function EigArpack(
+        sigma_pos = nothing, which_pos::Union{Nothing, Symbol} = nothing;
+        sigma = sigma_pos, which::Symbol = something(which_pos, :LR), kwargs...
+    )
+    @argcheck isnothing(sigma_pos) || sigma == sigma_pos "`sigma` given positionally and as a keyword"
+    @argcheck isnothing(which_pos) || which == which_pos "`which` given positionally and as a keyword"
+    reserved = (:nev, :ritzvec, :explicittransform)
+    return EigArpack(sigma, checktarget(EigArpack, which), checkreserved(EigArpack, kwargs, reserved))
 end
 
 backend(::EigArpack) = :Arpack

@@ -54,6 +54,10 @@ end
         # keywords the backend call sets itself
         @test_throws ArgumentError EigArpack(; nev = 3)
         @test_throws ArgumentError EigArpack(nothing, :LR; ritzvec = false)
+        @test_throws ArgumentError EigArpack(; explicittransform = :none)
+        @test_throws ArgumentError EigArpack(1.0; sigma = 2.0)
+        @test_throws ArgumentError EigArpack(nothing, :SR; which = :LR)
+        @test EigArpack(1.0; sigma = 1.0).sigma == 1.0
         @test_throws ArgumentError EigArnoldiMethod(; v1 = ones(3))
         @test_throws ArgumentError EigArnoldiMethod(; nev = 3)
         @test_throws ArgumentError EigGenericArpack(; stats = nothing)
@@ -343,6 +347,10 @@ end
         @test NamedTuple(l.kwargs) == (; maxiter = 500)
         @test EigArpack(which = :SR).which === :SR
 
+        # ARPACK computes at most n - 2 eigenvalues, :LI/:SI of a real problem need twice nev
+        @test_throws ArgumentError EigArpack(nothing, :LI)(A, 15)
+        @test length(EigArpack(nothing, :LI)(A, 14)[1]) == 14
+
         # the second `B` is indefinite
         n = 30
         Ks = withspectrum(1.0:n, sqrt.(1.0:n))
@@ -356,7 +364,35 @@ end
                 for i in 1:3
                     @test Ks * ϕ[:, i] ≈ λ[i] * (B * ϕ[:, i])
                 end
+                isposdef(B) && @test eltype(λ) <: Real
             end
+        end
+        @test_throws ArgumentError gev(EigArpack(1.0im, :LR), Ks, Matrix(Diagonal(1.0 .+ (1:n) ./ n)), 3)
+
+        # all eigenvalues are real for a symmetric `A` and a positive definite `B`
+        @test_throws ArgumentError gev(EigArpack(nothing, :LI), Ks, Matrix(Diagonal(1.0 .+ (1:n) ./ n)), 2)
+
+        # a symmetric `A` with an indefinite `B`, as in buckling, has complex eigenvalues ±i⋅c
+        npairs, nreal = 5, 20
+        np = 2npairs + nreal
+        Ap, Bp = zeros(np, np), zeros(np, np)
+        for k in 1:npairs
+            i = 2k - 1
+            Ap[i:(i + 1), i:(i + 1)] = (k / 2) * [0 1; 1 0]
+            Bp[i:(i + 1), i:(i + 1)] = [1 0; 0 -1]
+        end
+        for j in 1:nreal
+            Ap[2npairs + j, 2npairs + j] = 1 + j
+            Bp[2npairs + j, 2npairs + j] = isodd(j) ? 1.0 : -2.0
+        end
+        wp = normalize(sqrt.(1.0:np))
+        Qp = I - 2 * wp * transpose(wp)
+        Ap, Bp = Matrix(Symmetric(transpose(Qp) * Ap * Qp)), Matrix(Symmetric(transpose(Qp) * Bp * Qp))
+        @test !isposdef(Bp)
+        for (which, expected) in ((:LI, [2.5, 2.0, 1.5]), (:SI, [-2.5, -2.0, -1.5]))
+            λ, _, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Ap, Bp, 3)
+            @test converged
+            @test imag.(λ) ≈ expected atol = 1.0e-8
         end
     end
 
