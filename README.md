@@ -42,13 +42,17 @@ Loading [GenericSchur.jl](https://github.com/RalphAS/GenericSchur.jl) additional
 
 See the [documentation](https://henrij22.github.io/EigenValueSolvers.jl/stable) for details.
 
-This package is heavily inspired by the EigenValue solvers of
-[BifurcationKit.jl](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl),
-which is released under the MIT "Expat" License.
-
-## Installation
+## Installation (not yet registered)
 
 ```julia
 using Pkg
 Pkg.add("EigenValueSolvers")
 ```
+
+## Development
+
+Development started well before the advent of agent coding, where I was inspired by the EigenValue solver interface of
+[BifurcationKit.jl](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl),
+(released under the MIT "Expat" License).
+Now with agents, I could tidy up the package, add more solvers and fix long-standing bugs and inconsistencies.
+
