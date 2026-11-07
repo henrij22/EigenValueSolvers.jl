@@ -1,7 +1,7 @@
 module EigenValueSolversArpackExt
 
 using ArgCheck: @argcheck
-using EigenValueSolvers: EigenValueSolvers, EigArpack, ShiftInvert, sortselect
+using EigenValueSolvers: EigenValueSolvers, EigArpack, ShiftInvert, matrixrequired, sortselect
 using LinearAlgebra: LinearAlgebra, isposdef, issuccess, issymmetric, lu
 
 import Arpack
@@ -63,8 +63,10 @@ function shiftinvert(A, B, σ, nev::Int, kwargs)
     return realify((@. σ + inv(μ)), ϕ, A, B)..., nconv, nmult
 end
 
-function EigenValueSolvers.eigsolve(l::EigArpack, J, nev::Int; kwargs...)
-    @argcheck J isa AbstractMatrix
+EigenValueSolvers.eigsolve(l::EigArpack, J, nev::Int; kwargs...) = matrixrequired(l, J)
+EigenValueSolvers.geneigsolve(l::EigArpack, A, B, nev::Int; kwargs...) = matrixrequired(l, A, B)
+
+function EigenValueSolvers.eigsolve(l::EigArpack, J::AbstractMatrix, nev::Int; kwargs...)
     n = min(nev, size(J, 1))
 
     if !isnothing(l.sigma)
@@ -85,9 +87,7 @@ function EigenValueSolvers.eigsolve(l::EigArpack, J, nev::Int; kwargs...)
     return values, vectors, nconv ≥ n, nmult
 end
 
-function EigenValueSolvers.geneigsolve(l::EigArpack, A, B, nev::Int; kwargs...)
-    @argcheck A isa AbstractMatrix
-    @argcheck B isa AbstractMatrix
+function EigenValueSolvers.geneigsolve(l::EigArpack, A::AbstractMatrix, B::AbstractMatrix, nev::Int; kwargs...)
     n = min(nev, size(A, 1))
 
     if !isnothing(l.sigma)

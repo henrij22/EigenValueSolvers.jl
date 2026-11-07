@@ -1,7 +1,6 @@
 module EigenValueSolversIterativeSolversExt
 
-using ArgCheck: @argcheck
-using EigenValueSolvers: EigenValueSolvers, EigLOBPCG, sortselect
+using EigenValueSolvers: EigenValueSolvers, EigLOBPCG, matrixrequired, sortselect
 
 import IterativeSolvers
 
@@ -16,8 +15,6 @@ end
 
 # `B === nothing` is how IterativeSolvers spells the standard eigenvalue problem.
 function lobpcg(l::EigLOBPCG, A, B, nev::Int)
-    @argcheck A isa AbstractMatrix
-    @argcheck isnothing(B) || B isa AbstractMatrix
     n = min(nev, size(A, 1))
 
     # IterativeSolvers `throw`s a bare `String` here, which is neither catchable by type nor
@@ -52,7 +49,11 @@ function lobpcg(l::EigLOBPCG, A, B, nev::Int)
     return values, vectors, converged, iterations
 end
 
-EigenValueSolvers.eigsolve(l::EigLOBPCG, J, nev::Int; kwargs...) = lobpcg(l, J, nothing, nev)
-EigenValueSolvers.geneigsolve(l::EigLOBPCG, A, B, nev::Int; kwargs...) = lobpcg(l, A, B, nev)
+EigenValueSolvers.eigsolve(l::EigLOBPCG, J, nev::Int; kwargs...) = matrixrequired(l, J)
+EigenValueSolvers.geneigsolve(l::EigLOBPCG, A, B, nev::Int; kwargs...) = matrixrequired(l, A, B)
+
+EigenValueSolvers.eigsolve(l::EigLOBPCG, J::AbstractMatrix, nev::Int; kwargs...) = lobpcg(l, J, nothing, nev)
+EigenValueSolvers.geneigsolve(l::EigLOBPCG, A::AbstractMatrix, B::AbstractMatrix, nev::Int; kwargs...) =
+    lobpcg(l, A, B, nev)
 
 end

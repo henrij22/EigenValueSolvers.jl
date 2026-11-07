@@ -1,7 +1,6 @@
 module EigenValueSolversGenericArpackExt
 
-using ArgCheck: @argcheck
-using EigenValueSolvers: EigenValueSolvers, EigGenericArpack, sortselect
+using EigenValueSolvers: EigenValueSolvers, EigGenericArpack, matrixrequired, sortselect
 
 import GenericArpack
 
@@ -16,7 +15,6 @@ end
 
 function symeigs(l::EigGenericArpack, matrices, nev::Int)
     A = first(matrices)
-    @argcheck all(M -> M isa AbstractMatrix, matrices)
     n = min(nev, size(A, 1))
 
     # ARPACK reports the operator applications it needed in `nopx`.
@@ -35,7 +33,11 @@ function symeigs(l::EigGenericArpack, matrices, nev::Int)
     return values, vectors, nconv ≥ n, stats.nopx
 end
 
-EigenValueSolvers.eigsolve(l::EigGenericArpack, J, nev::Int; kwargs...) = symeigs(l, (J,), nev)
-EigenValueSolvers.geneigsolve(l::EigGenericArpack, A, B, nev::Int; kwargs...) = symeigs(l, (A, B), nev)
+EigenValueSolvers.eigsolve(l::EigGenericArpack, J, nev::Int; kwargs...) = matrixrequired(l, J)
+EigenValueSolvers.geneigsolve(l::EigGenericArpack, A, B, nev::Int; kwargs...) = matrixrequired(l, A, B)
+
+EigenValueSolvers.eigsolve(l::EigGenericArpack, J::AbstractMatrix, nev::Int; kwargs...) = symeigs(l, (J,), nev)
+EigenValueSolvers.geneigsolve(l::EigGenericArpack, A::AbstractMatrix, B::AbstractMatrix, nev::Int; kwargs...) =
+    symeigs(l, (A, B), nev)
 
 end

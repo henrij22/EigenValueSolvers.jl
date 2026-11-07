@@ -16,6 +16,13 @@
   sets itself (`nev`, `v1`, `stats`, `failonmaxiter`, ...). `EigArpack` also throws for complex
   shifts on real problems, for `:LI`/`:SI` with `2nev > n - 2` and for a singular `B` without shift.
 
+### Changed
+
+- Passing a non-matrix operator (e.g. a function) to a solver that needs an `AbstractMatrix`
+  (`EigDefault`, `EigArpack`, `EigArnoldiMethod`, `EigLOBPCG`, `EigGenericArpack`) now
+  throws an `ArgumentError` naming the solver, the offending type and the matrix-free
+  alternatives, instead of a bare `@argcheck` failure or a `MethodError`.
+
 ## v0.2.0
 
 ### Breaking

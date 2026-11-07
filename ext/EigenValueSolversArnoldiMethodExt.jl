@@ -1,7 +1,6 @@
 module EigenValueSolversArnoldiMethodExt
 
-using ArgCheck: @argcheck
-using EigenValueSolvers: EigenValueSolvers, EigArnoldiMethod, ShiftInvert, sortselect
+using EigenValueSolvers: EigenValueSolvers, EigArnoldiMethod, matrixrequired, ShiftInvert, sortselect
 using LinearAlgebra: LinearAlgebra
 
 import ArnoldiMethod
@@ -18,8 +17,10 @@ function checkarnoldiwhich(which::Symbol)
     return which
 end
 
-function EigenValueSolvers.eigsolve(l::EigArnoldiMethod, J, nev::Int; kwargs...)
-    @argcheck J isa AbstractMatrix
+EigenValueSolvers.eigsolve(l::EigArnoldiMethod, J, nev::Int; kwargs...) = matrixrequired(l, J)
+EigenValueSolvers.geneigsolve(l::EigArnoldiMethod, A, B, nev::Int; kwargs...) = matrixrequired(l, A, B)
+
+function EigenValueSolvers.eigsolve(l::EigArnoldiMethod, J::AbstractMatrix, nev::Int; kwargs...)
     n = min(nev, size(J, 1))
 
     if isnothing(l.sigma)
@@ -44,9 +45,7 @@ function EigenValueSolvers.eigsolve(l::EigArnoldiMethod, J, nev::Int; kwargs...)
     return values, vectors, history.converged, history.mvproducts
 end
 
-function EigenValueSolvers.geneigsolve(l::EigArnoldiMethod, A, B, nev::Int; kwargs...)
-    @argcheck A isa AbstractMatrix
-    @argcheck B isa AbstractMatrix
+function EigenValueSolvers.geneigsolve(l::EigArnoldiMethod, A::AbstractMatrix, B::AbstractMatrix, nev::Int; kwargs...)
     n = min(nev, size(A, 1))
 
     # A⋅x = λ⋅B⋅x is solved with the shift-invert method
