@@ -20,7 +20,7 @@ const REFERENCE = sort(eigvals(Symmetric(Matrix(K))))
 # A solver without any backend, used to check the error path of the package extensions.
 struct UnbackedSolver <: AbstractEigenSolver end
 
-# A solver whose backend package is never loaded, for the "requires X.jl" error message.
+# backend package that is never loaded
 struct UnloadedBackendSolver <: AbstractEigenSolver end
 EigenValueSolvers.backend(::UnloadedBackendSolver) = :NotLoadedBackend
 
@@ -483,7 +483,6 @@ end
         @test_throws ArgumentError UnbackedSolver()(rand(2, 2), 1)
         @test_throws ArgumentError gev(UnbackedSolver(), rand(2, 2), rand(2, 2), 1)
 
-        # a solver with a backend that is not loaded names the package to load
         @test_throws ArgumentError UnloadedBackendSolver()(rand(2, 2), 1)
         msg = try
             gev(UnloadedBackendSolver(), rand(2, 2), rand(2, 2), 1)
