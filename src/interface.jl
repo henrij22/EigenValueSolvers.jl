@@ -120,6 +120,16 @@ function checktarget(T::Type{<:AbstractEigenSolver}, which::Symbol)
     return which
 end
 
+# Forwarded kwargs are splatted last into the backend call, so a key the extension sets itself
+# would silently override it.
+function checkreserved(T::Type{<:AbstractEigenSolver}, kwargs, reserved)
+    bad = filter(in(reserved), collect(keys(kwargs)))
+    isempty(bad) || throw(
+        ArgumentError("$(nameof(T)) sets $(join(("`$k`" for k in bad), ", ")) itself, it cannot be passed as a keyword")
+    )
+    return kwargs
+end
+
 # Eigenvectors are stored either as the columns of a matrix or as a vector of vectors.
 selectvectors(ϕ::AbstractMatrix, idx) = ϕ[:, idx]
 selectvectors(ϕ::AbstractVector, idx) = ϕ[idx]

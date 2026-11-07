@@ -50,6 +50,14 @@ end
         @test_throws ArgumentError EigKrylovKit(; which = :XX)
         @test_throws ArgumentError EigLOBPCG(; which = :XX)
         @test_throws ArgumentError EigGenericArpack(; which = :XX)
+
+        # keywords the backend call sets itself
+        @test_throws ArgumentError EigArpack(; nev = 3)
+        @test_throws ArgumentError EigArpack(nothing, :LR; ritzvec = false)
+        @test_throws ArgumentError EigArnoldiMethod(; v1 = ones(3))
+        @test_throws ArgumentError EigArnoldiMethod(; nev = 3)
+        @test_throws ArgumentError EigGenericArpack(; stats = nothing)
+        @test EigArpack(; maxiter = 10).kwargs[:maxiter] == 10
     end
 
     @testset "supported targets" begin

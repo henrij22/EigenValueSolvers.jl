@@ -16,6 +16,8 @@
   - `EigArpack(which = :SR)` passed `which` on to `Arpack.eigs` but kept `:LR` as the
     solver's own target, so the result was sorted the wrong way round. `sigma` and `which`
     are now also accepted as keywords.
+- `EigArpack`, `EigArnoldiMethod` and `EigGenericArpack` throw if a forwarded keyword is one
+  the package sets itself (`nev`, `v1`, `stats`, `ritzvec`), instead of silently overriding it.
 
 ## v0.2.0
 

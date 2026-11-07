@@ -61,7 +61,7 @@ struct EigArpack{Tsigma, Tkw} <: AbstractIterativeEigenSolver
 end
 
 function EigArpack(s = nothing, w::Symbol = :LR; sigma = s, which::Symbol = w, kwargs...)
-    return EigArpack(sigma, checktarget(EigArpack, which), kwargs)
+    return EigArpack(sigma, checktarget(EigArpack, which), checkreserved(EigArpack, kwargs, (:nev, :ritzvec)))
 end
 
 backend(::EigArpack) = :Arpack
@@ -119,7 +119,9 @@ end
 function EigArnoldiMethod(;
         sigma = nothing, which::Symbol = :LR, x₀ = nothing, factorize = lu, kwargs...
     )
-    return EigArnoldiMethod(sigma, checktarget(EigArnoldiMethod, which), kwargs, x₀, factorize)
+    return EigArnoldiMethod(
+        sigma, checktarget(EigArnoldiMethod, which), checkreserved(EigArnoldiMethod, kwargs, (:nev, :v1)), x₀, factorize
+    )
 end
 
 backend(::EigArnoldiMethod) = :ArnoldiMethod
@@ -285,7 +287,7 @@ struct EigGenericArpack{Tkw} <: AbstractIterativeEigenSolver
 end
 
 function EigGenericArpack(; which::Symbol = :LR, kwargs...)
-    return EigGenericArpack(checktarget(EigGenericArpack, which), kwargs)
+    return EigGenericArpack(checktarget(EigGenericArpack, which), checkreserved(EigGenericArpack, kwargs, (:stats, :ritzvec)))
 end
 
 supportedtargets(::Type{<:EigGenericArpack}) = (:LM, :SM, :LR, :SR)
