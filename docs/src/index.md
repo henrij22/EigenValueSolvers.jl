@@ -12,9 +12,9 @@ A thin, uniform interface around the eigenvalue solvers of `LinearAlgebra`,
 All solvers share the same call signature, the same `which` targets and the same return
 values, so that a solver can be swapped for another one without touching the calling code.
 
-This package is heavily inspired by the EigenValue solvers of
-[`BifurcationKit.jl`](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl),
-which is released under the MIT "Expat" License.
+This package is inspired by the EigenValue solvers of
+[`BifurcationKit.jl`](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl) 
+(released under the MIT "Expat" License).
 
 ## Installation
 
