@@ -9,6 +9,7 @@ import Arpack
 # ARPACK sorts :LI/:SI of real problems by |imag| (dsortc). The spectrum is symmetric to the
 # real axis, so the 2nev eigenvalues of largest |imag| contain the wanted ones and
 # `sortselect` picks them. That fails if 2nev had to be cut at the n - 2 ARPACK can compute.
+# With fewer than nev complex pairs, ties at imag = 0 are resolved arbitrarily.
 isrealimag(which::Symbol, matrices...) = which in (:LI, :SI) && all(M -> eltype(M) <: Real, matrices)
 
 function imagnev(nev::Int, n::Int)
