@@ -32,6 +32,7 @@ end
 
 """
     EigArpack(sigma = nothing, which = :LR; kwargs...)
+    EigArpack(; sigma = nothing, which = :LR, kwargs...)
 
 Iterative eigen solver based on [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl).
 Requires `using Arpack`.
@@ -40,9 +41,9 @@ If `sigma` is given, the shift-invert method `(J - sigma⋅I)⁻¹` is used and 
 eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
 which they are returned. Without a shift, `which` selects the eigenvalues as documented in
 [`TARGETS`](@ref). `:LI`/`:SI` throw for real symmetric problems, whose eigenvalues are all
-real. ARPACK's `:SM` mode without a shift converges poorly, for the smallest eigenvalues a
-shift is the better choice, e.g. `EigArpack(-1.0, :SR)` for a stiffness matrix with rigid
-body modes.
+real. Without a shift, ARPACK converges poorly for the smallest eigenvalues (`:SM`, and `:SR`
+for generalized problems). Use a shift instead, e.g. `EigArpack(; sigma = 0.0, which = :SR)`,
+or a slightly negative one for a stiffness matrix with rigid body modes.
 
 Additional `kwargs` are forwarded to `Arpack.eigs`.
 
@@ -59,7 +60,7 @@ struct EigArpack{Tsigma, Tkw} <: AbstractIterativeEigenSolver
     kwargs::Tkw
 end
 
-function EigArpack(sigma = nothing, which::Symbol = :LR; kwargs...)
+function EigArpack(s = nothing, w::Symbol = :LR; sigma = s, which::Symbol = w, kwargs...)
     return EigArpack(sigma, checktarget(EigArpack, which), kwargs)
 end
 

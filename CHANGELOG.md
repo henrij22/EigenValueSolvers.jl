@@ -13,6 +13,9 @@
     returns the eigenvalues *farthest* from `sigma`, so `gev` computed the wrong part of the
     spectrum. The shift-invert transformation is now done explicitly, which also works for
     an indefinite `B`.
+  - `EigArpack(which = :SR)` passed `which` on to `Arpack.eigs` but kept `:LR` as the
+    solver's own target, so the result was sorted the wrong way round. `sigma` and `which`
+    are now also accepted as keywords.
 
 ## v0.2.0
 

@@ -328,6 +328,13 @@ end
         @test_throws ArgumentError EigArpack(nothing, :LI)(S, 2)
         @test_throws ArgumentError EigArpack(nothing, :SI)(S, 2)
 
+        # `sigma`/`which` as keywords must not end up in the kwargs for `Arpack.eigs`
+        l = EigArpack(; sigma = 0.0, which = :SR, maxiter = 500)
+        @test l.sigma == 0.0
+        @test l.which === :SR
+        @test NamedTuple(l.kwargs) == (; maxiter = 500)
+        @test EigArpack(which = :SR).which === :SR
+
         # the second `B` is indefinite
         n = 30
         Ks = withspectrum(1.0:n, sqrt.(1.0:n))
