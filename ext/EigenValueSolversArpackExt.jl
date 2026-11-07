@@ -6,22 +6,8 @@ using LinearAlgebra: LinearAlgebra, issymmetric, lu
 
 import Arpack
 
-"""
-    arpacktarget(which, nev, n, isreal) -> (which, nev)
-
-Translate the target `which` of the package into the `which`/`nev` pair handed to
-`Arpack.eigs` for a problem of size `n` without a shift.
-
-For real (nonsymmetric) problems ARPACK sorts `:LI`/`:SI` by the *magnitude* of the
-imaginary part (see `dsortc`), i.e. `:LI` returns the eigenvalues farthest from the real
-axis and `:SI` the (nearly) real ones. The spectrum of a real problem is symmetric with
-respect to the real axis, so the `nev` eigenvalues with the largest (smallest) imaginary
-part are among the `2nev` eigenvalues with the largest imaginary part in magnitude. These
-are requested and [`sortselect`](@ref EigenValueSolvers.sortselect) picks the right ones.
-
-For a real symmetric problem all eigenvalues are real, so `:LI`/`:SI` are meaningless and
-throw (`issymmetric` is the check `Arpack.eigs` itself uses to pick the symmetric driver).
-"""
+# For real problems ARPACK sorts :LI/:SI by |imag| (dsortc). The spectrum is symmetric to the
+# real axis, so we request 2nev eigenvalues with :LI and let `sortselect` pick.
 function arpacktarget(which::Symbol, nev::Int, n::Int, isreal::Bool, issym)
     if isreal && which in (:LI, :SI)
         issym() && throw(
@@ -35,20 +21,8 @@ function arpacktarget(which::Symbol, nev::Int, n::Int, isreal::Bool, issym)
     return which, nev
 end
 
-"""
-    shiftinvert(A, B, σ, nev, kwargs) -> (λ, ϕ, nconv, nmult)
-
-Solve `A⋅x = λ⋅B⋅x` for the `nev` eigenvalues closest to `σ` with `Arpack.eigs`, doing the
-shift-invert transformation explicitly:
-
-    (A - σ⋅B)⁻¹ B⋅x = 1 / (λ - σ) ⋅ x
-
-so the wanted eigenvalues are the dominant ones of the operator.
-
-This is needed since `Arpack.eigs(A, B; sigma)` swaps the meaning of `:LM` and `:SM` for
-generalized problems (with its default `explicittransform = :auto` it returns the
-eigenvalues *farthest* from `sigma` for `which = :LM`).
-"""
+# `Arpack.eigs(A, B; sigma)` swaps :LM and :SM for generalized problems, so the shift-invert
+# transformation (A - σB)⁻¹B is done here explicitly.
 function shiftinvert(A, B, σ, nev::Int, kwargs)
     M = A - σ * B
     n = size(A, 1)
