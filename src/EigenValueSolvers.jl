@@ -10,7 +10,7 @@ which is released under the MIT "Expat" License.
 """
 module EigenValueSolvers
 
-using LinearAlgebra: LinearAlgebra, eigen, lu
+using LinearAlgebra: LinearAlgebra, eigen, ldiv!, lu, mul!
 using ArgCheck: @argcheck
 
 export AbstractEigenSolver, AbstractDirectEigenSolver, AbstractIterativeEigenSolver, AbstractMFEigenSolver

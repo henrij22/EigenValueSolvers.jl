@@ -291,6 +291,65 @@ end
         @test_throws ArgumentError EigLOBPCG(; X₀ = ones(6, 3))(withspectrum(1.0:6.0, 1.0:6.0), 1)
     end
 
+    @testset "Arpack honours every target" begin
+        # A real nonsymmetric matrix with 10 complex conjugate pairs and 10 real eigenvalues,
+        # all of them distinct in real part, imaginary part and magnitude.
+        m = 10
+        pairs = [complex(-2.0 + 0.45k, 0.3k + 0.02k^2) for k in 1:m]
+        reals = [-3.1 + 0.73k for k in 1:m]
+        D = zeros(3m, 3m)
+        for (k, z) in enumerate(pairs)
+            D[(2k - 1):2k, (2k - 1):2k] = [real(z) imag(z); -imag(z) real(z)]
+        end
+        for (k, r) in enumerate(reals)
+            D[2m + k, 2m + k] = r
+        end
+        w = normalize(sqrt.(1.0:(3m)))
+        Q = I - 2 * w * transpose(w)
+        A = Q * D * transpose(Q)
+        spectrum = vcat(pairs, conj.(pairs), reals)
+        nev = 4
+
+        for which in EigenValueSolvers.TARGETS
+            by, rev = EigenValueSolvers.ordering(which)
+            expected = by.(sort(spectrum; by = by, rev = rev)[1:nev])
+            λ, _, converged, _ = EigArpack(nothing, which; maxiter = 1000)(A, nev)
+            @test converged
+            @test by.(λ) ≈ expected atol = 1.0e-8
+
+            # the same through the generalized problem with a diagonal `B`. ARPACK's own
+            # `"SM"` mode (regular inverse mode 2) does not find the smallest eigenvalues
+            # reliably here, which is why a shift should be used for these.
+            which === :SM && continue
+            d = 1.0 .+ (1:(3m)) ./ (3m)
+            λ, _, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Diagonal(d) * A, Matrix(Diagonal(d)), nev)
+            @test converged
+            @test by.(λ) ≈ expected atol = 1.0e-8
+        end
+
+        # `:LI`/`:SI` are meaningless for real symmetric problems
+        S = withspectrum(1.0:20, 1.0:20)
+        @test_throws ArgumentError EigArpack(nothing, :LI)(S, 2)
+        @test_throws ArgumentError EigArpack(nothing, :SI)(S, 2)
+
+        # generalized problem with a shift: the eigenvalues *closest* to sigma are computed,
+        # also for an indefinite `B` (as e.g. a geometric stiffness matrix in buckling)
+        n = 30
+        Ks = withspectrum(1.0:n, sqrt.(1.0:n))
+        for B in (Matrix(Diagonal(1.0 .+ (1:n) ./ n)), Matrix(Diagonal([isodd(i) ? 1.0 : -2.0 for i in 1:n])))
+            exact = eigvals(Ks, B)
+            for σ in (0.0, 4.2, -3.7)
+                λ, ϕ, converged, _ = gev(EigArpack(σ, :LR), Ks, B, 3)
+                @test converged
+                @test sort(real.(λ)) ≈ sort(real.(sort(exact; by = x -> abs(x - σ))[1:3]))
+                @test issorted(real.(λ); rev = true)
+                for i in 1:3
+                    @test Ks * ϕ[:, i] ≈ λ[i] * (B * ϕ[:, i])
+                end
+            end
+        end
+    end
+
     @testset "custom factorization" begin
         # `factorize` only has to return something supporting `ldiv!`, so a Cholesky
         # factorization works for the positive definite shifted matrix below.

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `EigArpack` did not always return the eigenvalues selected by `which`:
+  - `:LI`/`:SI` for real nonsymmetric problems: ARPACK sorts these by the *magnitude* of the
+    imaginary part, so `:SI` returned the real eigenvalues and `:LI` both members of a
+    complex conjugate pair. Now `2nev` eigenvalues with `:LI` are requested and the correct
+    ones are selected. For real symmetric problems `:LI`/`:SI` throw a clear error.
+  - Generalized problems with a shift `sigma`: `Arpack.eigs(A, B; sigma, which = :LM)`
+    returns the eigenvalues *farthest* from `sigma`, so `gev` computed the wrong part of the
+    spectrum. The shift-invert transformation is now done explicitly, which also works for
+    an indefinite `B`.
+
 ## v0.2.0
 
 ### Breaking

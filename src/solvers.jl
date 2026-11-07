@@ -39,7 +39,10 @@ Requires `using Arpack`.
 If `sigma` is given, the shift-invert method `(J - sigma⋅I)⁻¹` is used and the `nev`
 eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
 which they are returned. Without a shift, `which` selects the eigenvalues as documented in
-[`TARGETS`](@ref).
+[`TARGETS`](@ref). `:LI`/`:SI` throw for real symmetric problems, whose eigenvalues are all
+real. ARPACK's `:SM` mode without a shift converges poorly, for the smallest eigenvalues a
+shift is the better choice, e.g. `EigArpack(-1.0, :SR)` for a stiffness matrix with rigid
+body modes.
 
 Additional `kwargs` are forwarded to `Arpack.eigs`.
 

@@ -1,35 +1,10 @@
 module EigenValueSolversArnoldiMethodExt
 
 using ArgCheck: @argcheck
-using EigenValueSolvers: EigenValueSolvers, EigArnoldiMethod, sortselect
-using LinearAlgebra: LinearAlgebra, ldiv!, mul!
+using EigenValueSolvers: EigenValueSolvers, EigArnoldiMethod, ShiftInvert, sortselect
+using LinearAlgebra: LinearAlgebra
 
 import ArnoldiMethod
-
-"""
-    ShiftInvert(F, B, n, tmp)
-
-The linear map `x -> F \\ (B * x)`, with `B === nothing` standing for the identity. This
-implements just enough of the array interface (`eltype`, `size` and `mul!`) for
-`ArnoldiMethod.partialschur`, which saves a dependency on a dedicated linear map package.
-"""
-struct ShiftInvert{T, TF, TB}
-    F::TF
-    B::TB
-    n::Int
-    tmp::Vector{T}
-end
-
-Base.eltype(::ShiftInvert{T}) where {T} = T
-Base.size(op::ShiftInvert) = (op.n, op.n)
-Base.size(op::ShiftInvert, i::Int) = i ≤ 2 ? op.n : 1
-
-LinearAlgebra.mul!(y, op::ShiftInvert{T, TF, Nothing}, x) where {T, TF} = ldiv!(y, op.F, x)
-
-function LinearAlgebra.mul!(y, op::ShiftInvert, x)
-    mul!(op.tmp, op.B, x)
-    return ldiv!(y, op.F, op.tmp)
-end
 
 # ArnoldiMethod has no `:SM` target, but the shift-invert method with a shift of zero does
 # exactly that, which is what a user asking for `:SM` most likely wants.
