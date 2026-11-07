@@ -232,9 +232,7 @@ end
         # `rand` (not `randn`) block, whose columns all cluster around the all-ones vector.
         X₀ = [cospi(i * j / n) for i in 1:n, j in 1:nev]
 
-        # The cases without `X₀` draw their starting block from the global RNG, and about one
-        # in a few hundred random blocks makes LOBPCG fail with a `PosDefException`. A fixed
-        # seed before every solve keeps these cases reproducible.
+        # without `X₀`, LOBPCG starts from `rand` and fails in about 1 of 300 runs
         lobpcgseed = 1
 
         # `tol` stays clear of 1e-9, where LOBPCG's Rayleigh-Ritz subproblem starts to fail
