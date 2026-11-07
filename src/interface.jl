@@ -208,9 +208,8 @@ end
 """
     matrixrequired(l::AbstractEigenSolver, operators...)
 
-Throw an `ArgumentError` explaining that `l` works on matrices only. This is the fallback
-of the solvers that need every operator to be an `AbstractMatrix`, so that passing e.g. a
-function gives a helpful message instead of a `MethodError` deep inside the backend.
+Throw an `ArgumentError` saying that `l` only works on matrices. Fallback of the solvers
+that need every operator to be an `AbstractMatrix`.
 """
 function matrixrequired(l::AbstractEigenSolver, operators...)
     i = findfirst(op -> !(op isa AbstractMatrix), operators)

@@ -488,7 +488,6 @@ end
             @test_throws ArgumentError l(f, 1)
             @test_throws ArgumentError gev(l, f, M, 1)
             @test_throws ArgumentError gev(l, M, f, 1)
-            # the message names the offending type and points to the matrix-free solvers
             msg = try
                 gev(l, M, f, 1)
             catch e
