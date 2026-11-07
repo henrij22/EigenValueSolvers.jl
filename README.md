@@ -13,8 +13,8 @@ A thin, uniform interface around the eigenvalue solvers of `LinearAlgebra`,
 [IterativeSolvers.jl](https://github.com/JuliaLinearAlgebra/IterativeSolvers.jl) and
 [GenericArpack.jl](https://github.com/dgleich/GenericArpack.jl).
 
-All solvers share the same call signature, the same `which` targets and the same return
-values, so that a solver can be swapped for another one without touching the calling code.
+All solvers have the same call signature, accept the same `which` targets and return the
+same values. You can switch from one solver to another without changing the calling code.
 
 ```julia
 using EigenValueSolvers, Arpack
@@ -25,8 +25,8 @@ values, vectors, converged, numops = solver(K, 20)   # ... in ascending order
 v = geteigenvector(solver, vectors, 1)
 ```
 
-The backends are *weak* dependencies loaded through package extensions, so only the solvers
-you actually use are installed and loaded:
+The backends are weak dependencies loaded through package extensions, so you only install
+the packages for the solvers you use:
 
 | solver             | requires                 | problems                                 |
 |:-------------------|:-------------------------|:-----------------------------------------|
@@ -37,8 +37,8 @@ you actually use are installed and loaded:
 | `EigLOBPCG`        | `using IterativeSolvers` | large sparse symmetric, no factorization |
 | `EigGenericArpack` | `using GenericArpack`    | symmetric, non-`Float64` element types   |
 
-Loading [GenericSchur.jl](https://github.com/RalphAS/GenericSchur.jl) additionally makes
-`EigDefault` work on `BigFloat` matrices, without this package needing an extension for it.
+With [GenericSchur.jl](https://github.com/RalphAS/GenericSchur.jl) loaded, `EigDefault` also
+works on `BigFloat` matrices.
 
 See the [documentation](https://henrij22.github.io/EigenValueSolvers.jl/stable) for details.
 

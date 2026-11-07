@@ -6,14 +6,16 @@ CurrentModule = EigenValueSolvers
 
 A thin, uniform interface around the eigenvalue solvers of `LinearAlgebra`,
 [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl),
-[ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl) and
-[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
+[ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl),
+[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl),
+[IterativeSolvers.jl](https://github.com/JuliaLinearAlgebra/IterativeSolvers.jl) and
+[GenericArpack.jl](https://github.com/dgleich/GenericArpack.jl).
 
-All solvers share the same call signature, the same `which` targets and the same return
-values, so that a solver can be swapped for another one without touching the calling code.
+All solvers have the same call signature, accept the same `which` targets and return the
+same values. You can switch from one solver to another without changing the calling code.
 
-This package is inspired by the EigenValue solvers of
-[`BifurcationKit.jl`](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl) 
+This package is inspired by the eigenvalue solvers of
+[`BifurcationKit.jl`](https://github.com/bifurcationkit/BifurcationKit.jl/blob/master/src/EigSolver.jl)
 (released under the MIT "Expat" License).
 
 ## Installation
@@ -23,9 +25,9 @@ using Pkg
 Pkg.add("EigenValueSolvers")
 ```
 
-The backends are *weak* dependencies, loaded through package extensions. Only
-[`EigDefault`](@ref) works out of the box; for the other solvers the corresponding package
-has to be installed and loaded:
+The backends are weak dependencies, loaded through package extensions. Only
+[`EigDefault`](@ref) works out of the box. For the other solvers, install and load the
+corresponding package:
 
 | solver                      | requires                 | problems                        |
 |:----------------------------|:-------------------------|:--------------------------------|
@@ -36,13 +38,13 @@ has to be installed and loaded:
 | [`EigLOBPCG`](@ref)         | `using IterativeSolvers` | large sparse symmetric, no factorization |
 | [`EigGenericArpack`](@ref)  | `using GenericArpack`    | symmetric, non-`Float64` element types |
 
-Using a solver whose backend is not loaded raises an error that says which package is
-missing.
+If the backend of a solver is not loaded, calling it throws an error that names the missing
+package.
 
-[GenericSchur.jl](https://github.com/RalphAS/GenericSchur.jl) is worth knowing about even
-though this package needs no extension for it: it adds `LinearAlgebra.eigen` methods for
-element types LAPACK does not handle, so loading it makes [`EigDefault`](@ref) work on
-`BigFloat` or `Double64` matrices without any further ado.
+[GenericSchur.jl](https://github.com/RalphAS/GenericSchur.jl) needs no extension, but it is
+useful together with this package: it adds `LinearAlgebra.eigen` methods for element types
+that LAPACK does not handle. With it loaded, [`EigDefault`](@ref) also works on `BigFloat`
+or `Double64` matrices.
 
 ## Usage
 
@@ -76,8 +78,8 @@ The four return values are always the same:
 | `converged` | `true` if at least `nev` eigenpairs converged                        |
 | `numops`    | number of operator applications used by the backend                  |
 
-Use [`geteigenvector`](@ref) to access an eigenvector, since matrix-free solvers return a
-vector of vectors instead of a matrix:
+Matrix-free solvers return the eigenvectors as a vector of vectors instead of a matrix. Use
+[`geteigenvector`](@ref) to access an eigenvector, then the code works for both:
 
 ```jldoctest quickstart
 julia> v = geteigenvector(solver, vectors, 1);
@@ -88,8 +90,8 @@ true
 
 ## Targets
 
-The `which` field of every solver selects *which* part of the spectrum is computed and in
-which order it is returned:
+The `which` field of every solver selects the part of the spectrum that is computed and the
+order in which it is returned:
 
 | target | selects the eigenvalues with ... | ordering of the result |
 |:-------|:---------------------------------|:-----------------------|
@@ -100,13 +102,13 @@ which order it is returned:
 | `:LI`  | largest imaginary part           | descending in `imag`   |
 | `:SI`  | smallest imaginary part          | ascending in `imag`    |
 
-Every solver applies this ordering itself, so the results of two different solvers with the
-same `which` are directly comparable.
+Every solver sorts its result this way, so two solvers with the same `which` return
+comparable results.
 
-Not every backend can honour every target: a solver restricted to symmetric problems has no
-use for `:LI`/`:SI`, and one that selects purely by algebraic value cannot express
-`:LM`/`:SM`. Constructing a solver with an unsupported target throws, and
-[`supportedtargets`](@ref) says up front what a given solver accepts:
+Not every backend supports every target. For a solver that only handles symmetric problems,
+`:LI`/`:SI` make no sense, and a solver that selects by algebraic value cannot do
+`:LM`/`:SM`. Constructing a solver with an unsupported target throws an error.
+[`supportedtargets`](@ref) lists the targets a solver accepts:
 
 ```jldoctest
 julia> using EigenValueSolvers
@@ -135,10 +137,9 @@ julia> round.(values; digits = 4)
 
 ## Shift-invert
 
-[`EigArpack`](@ref) and [`EigArnoldiMethod`](@ref) accept a shift `sigma`. With a shift, the
-`nev` eigenvalues *closest to* `sigma` are computed and `which` only determines the order in
-which they are returned. This is the way to get at the smallest eigenvalues of a large
-sparse matrix:
+[`EigArpack`](@ref) and [`EigArnoldiMethod`](@ref) accept a shift `sigma`. With a shift, they
+compute the `nev` eigenvalues closest to `sigma`, and `which` only sets the order of the
+result. Use this to compute the smallest eigenvalues of a large sparse matrix:
 
 ```julia
 using EigenValueSolvers, Arpack
