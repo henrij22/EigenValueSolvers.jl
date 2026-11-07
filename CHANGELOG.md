@@ -4,26 +4,17 @@
 
 ### Fixed
 
-- `EigArpack` did not always return the eigenvalues selected by `which`:
-  - `:LI`/`:SI` for real nonsymmetric problems: ARPACK sorts these by the *magnitude* of the
-    imaginary part, so `:SI` returned the real eigenvalues and `:LI` both members of a
-    complex conjugate pair. Now `2nev` eigenvalues with `:LI` are requested and the correct
-    ones are selected. For real symmetric problems `:LI`/`:SI` throw a clear error.
-  - Generalized problems with a shift `sigma`: `Arpack.eigs(A, B; sigma, which = :LM)`
-    returns the eigenvalues *farthest* from `sigma`, so `gev` computed the wrong part of the
-    spectrum. The shift-invert transformation is now done explicitly, which also works for
-    an indefinite `B`. For a symmetric `A` and a positive definite `B` ARPACK's symmetric
-    mode is still used and the eigenvalues are real.
-  - `:LI`/`:SI` of a generalized problem with a symmetric `A` and an indefinite `B`, which has
-    complex eigenvalues, are computed instead of rejected. Complex shifts for real problems and
-    `:LI`/`:SI` with `2nev > n - 2`, which can return a wrong eigenvalue, throw a clear error.
-  - `sigma` given both positionally and as a keyword throws.
-  - `EigArpack(which = :SR)` passed `which` on to `Arpack.eigs` but kept `:LR` as the
-    solver's own target, so the result was sorted the wrong way round. `sigma` and `which`
-    are now also accepted as keywords.
-- `EigArpack` (`nev`, `ritzvec`, `explicittransform`), `EigArnoldiMethod` (`nev`, `v1`) and
-  `EigGenericArpack` (`stats`, `ritzvec`) throw if a forwarded keyword is one the package sets
-  itself, instead of silently overriding it.
+- `EigArpack` returned wrong eigenvalues for `:LI`/`:SI` of real nonsymmetric problems (ARPACK
+  sorts by `|imag|`) and for `gev` with a shift (`Arpack.eigs(A, B; sigma)` swaps `:LM`/`:SM`).
+- `EigArpack(which = :SR)` kept `:LR` as its target. `sigma` and `which` are now also keywords.
+- `:LI`/`:SI` with a symmetric `A` and an indefinite `B`, which has complex eigenvalues, are
+  computed instead of rejected.
+
+### Changed
+
+- `EigArpack`, `EigArnoldiMethod` and `EigGenericArpack` throw for forwarded keywords the package
+  sets itself (`nev`, `v1`, `stats`, ...). `EigArpack` also throws for complex shifts on real
+  problems and for `:LI`/`:SI` with `2nev > n - 2`.
 
 ## v0.2.0
 
