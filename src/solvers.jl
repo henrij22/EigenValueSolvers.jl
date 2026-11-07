@@ -37,7 +37,7 @@ end
 Iterative eigen solver based on [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl).
 Requires `using Arpack`.
 
-`sigma` and `which` can be given positionally or as keywords, but not both.
+`sigma` and `which` can be given positionally or as keywords, and must agree if both are given.
 
 If `sigma` is given, the shift-invert method `(J - sigma⋅I)⁻¹` is used and the `nev`
 eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
@@ -52,6 +52,10 @@ For real problems, `:LI`/`:SI` throw if all eigenvalues are real, i.e. for a sym
 
 The eigenvalues are real for symmetric problems, also for generalized ones with a shift if `B`
 is positive definite. Otherwise they are complex, as for any nonsymmetric problem in ARPACK.
+
+Symmetry and definiteness are tested exactly (`issymmetric`, `isposdef`), so matrices that are
+symmetric only up to roundoff are treated as nonsymmetric. If `B` is not positive definite,
+B⁻¹A is solved instead, since ARPACK's generalized modes require it.
 
 Additional `kwargs` are forwarded to `Arpack.eigs`, except for `nev`, `ritzvec` and
 `explicittransform`, which are set by the solver.
@@ -302,7 +306,7 @@ struct EigGenericArpack{Tkw} <: AbstractIterativeEigenSolver
 end
 
 function EigGenericArpack(; which::Symbol = :LR, kwargs...)
-    return EigGenericArpack(checktarget(EigGenericArpack, which), checkreserved(EigGenericArpack, kwargs, (:stats, :ritzvec)))
+    return EigGenericArpack(checktarget(EigGenericArpack, which), checkreserved(EigGenericArpack, kwargs, (:stats, :ritzvec, :failonmaxiter)))
 end
 
 supportedtargets(::Type{<:EigGenericArpack}) = (:LM, :SM, :LR, :SR)

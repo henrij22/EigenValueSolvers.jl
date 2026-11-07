@@ -61,6 +61,7 @@ end
         @test_throws ArgumentError EigArnoldiMethod(; v1 = ones(3))
         @test_throws ArgumentError EigArnoldiMethod(; nev = 3)
         @test_throws ArgumentError EigGenericArpack(; stats = nothing)
+        @test_throws ArgumentError EigGenericArpack(; failonmaxiter = true)
         @test EigArpack(; maxiter = 10).kwargs[:maxiter] == 10
     end
 
@@ -366,6 +367,36 @@ end
                 end
                 isposdef(B) && @test eltype(λ) <: Real
             end
+        end
+        # unshifted targets with an indefinite `B`
+        Bi = Matrix(Diagonal([isodd(i) ? 1.0 : -2.0 for i in 1:n]))
+        exact = eigvals(Ks, Bi)
+        for which in (:LR, :LM)
+            by, rev = EigenValueSolvers.ordering(which)
+            λ, ϕ, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Ks, Bi, 3)
+            @test converged
+            @test eltype(λ) <: Real
+            @test by.(λ) ≈ by.(sort(exact; by = by, rev = rev)[1:3])
+            @test Ks * ϕ[:, 1] ≈ λ[1] * (Bi * ϕ[:, 1])
+        end
+
+        # nonsymmetric `A` with a shift, and complex matrices
+        B = Matrix(Diagonal(1.0 .+ (1:n) ./ n))
+        zs = [complex(0.5k, (-1)^k * (0.2k + 0.01k^2)) for k in 1:n]
+        Vc = Matrix(qr(complex.(cos.((1:n) * (1:n)'), sin.((1:n) * (1:n)'))).Q)
+        Ac = B * (Vc * Diagonal(zs) * Vc')
+        An = A[1:n, 1:n]
+        for M in (An, Ac)
+            exact = eigvals(M, B)
+            λ, _, converged, _ = gev(EigArpack(4.2, :LR; maxiter = 1000), M, B, 3)
+            @test converged
+            @test sort(λ; by = reim) ≈ sort(sort(exact; by = x -> abs(x - 4.2))[1:3]; by = reim)
+        end
+        for which in (:LI, :SI)
+            by, rev = EigenValueSolvers.ordering(which)
+            λ, _, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Ac, B, 3)
+            @test converged
+            @test imag.(λ) ≈ imag.(sort(eigvals(Ac, B); by = by, rev = rev)[1:3])
         end
         @test_throws ArgumentError gev(EigArpack(1.0im, :LR), Ks, Matrix(Diagonal(1.0 .+ (1:n) ./ n)), 3)
 

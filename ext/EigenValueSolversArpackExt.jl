@@ -10,6 +10,7 @@ import Arpack
 # real axis, so the 2nev eigenvalues of largest |imag| contain the wanted ones and
 # `sortselect` picks them. That fails if 2nev had to be cut at the n - 2 ARPACK can compute.
 # With fewer than nev complex pairs, ties at imag = 0 are resolved arbitrarily.
+# `false` for complex matrices, where ARPACK handles :LI/:SI natively.
 isrealimag(which::Symbol, matrices...) = which in (:LI, :SI) && all(M -> eltype(M) <: Real, matrices)
 
 function imagnev(nev::Int, n::Int)
@@ -27,12 +28,18 @@ symmetricimag(which::Symbol) = ArgumentError(
         "(with positive definite `B` if generalized), all its eigenvalues are real"
 )
 
+# Real problems with only real eigenvalues come back from ARPACK with a zero imaginary part.
+function realify(λ, ϕ, matrices...)
+    all(M -> eltype(M) <: Real, matrices) && all(isreal, λ) && all(isreal, ϕ) && return real.(λ), real.(ϕ)
+    return λ, ϕ
+end
+
 # The generalized modes of ARPACK need a positive definite `B`, so solve B⁻¹A⋅x = λ⋅x instead.
-function inverseB(A, B, nev::Int, kwargs)
+function inverseB(A, B, which::Symbol, nev::Int, kwargs)
     n = size(A, 1)
     op = ShiftInvert(lu(B), A, n, Vector{promote_type(eltype(A), eltype(B))}(undef, n))
-    λ, ϕ, nconv, _, nmult = Arpack.eigs(op; nev = nev, which = :LI, kwargs...)
-    return λ, ϕ, nconv, nmult
+    λ, ϕ, nconv, _, nmult = Arpack.eigs(op; nev = nev, which = which, kwargs...)
+    return realify(λ, ϕ, A, B)..., nconv, nmult
 end
 
 # `Arpack.eigs(A, B; sigma)` swaps :LM and :SM for generalized problems by default. The
@@ -51,7 +58,7 @@ function shiftinvert(A, B, σ, nev::Int, kwargs)
     n = size(A, 1)
     op = ShiftInvert(lu(M), B, n, Vector{eltype(M)}(undef, n))
     μ, ϕ, nconv, _, nmult = Arpack.eigs(op; nev = nev, which = :LM, kwargs...)
-    return (@. σ + inv(μ)), ϕ, nconv, nmult
+    return realify((@. σ + inv(μ)), ϕ, A, B)..., nconv, nmult
 end
 
 function EigenValueSolvers.eigsolve(l::EigArpack, J, nev::Int; kwargs...)
@@ -83,8 +90,9 @@ function EigenValueSolvers.geneigsolve(l::EigArpack, A, B, nev::Int; kwargs...)
 
     if !isnothing(l.sigma)
         λ, ϕ, nconv, nmult = shiftinvert(A, B, l.sigma, n, l.kwargs)
-    elseif isrealimag(l.which, A, B) && !isposdef(B)
-        λ, ϕ, nconv, nmult = inverseB(A, B, imagnev(n, size(A, 1)), l.kwargs)
+    elseif !isposdef(B)
+        which, narpack = isrealimag(l.which, A, B) ? (:LI, imagnev(n, size(A, 1))) : (l.which, n)
+        λ, ϕ, nconv, nmult = inverseB(A, B, which, narpack, l.kwargs)
     else
         which, narpack = l.which, n
         if isrealimag(l.which, A, B)

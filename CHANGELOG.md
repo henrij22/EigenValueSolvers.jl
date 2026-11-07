@@ -7,13 +7,13 @@
 - `EigArpack` returned wrong eigenvalues for `:LI`/`:SI` of real nonsymmetric problems (ARPACK
   sorts by `|imag|`) and for `gev` with a shift (`Arpack.eigs(A, B; sigma)` swaps `:LM`/`:SM`).
 - `EigArpack(which = :SR)` kept `:LR` as its target. `sigma` and `which` are now also keywords.
-- `:LI`/`:SI` with a symmetric `A` and an indefinite `B`, which has complex eigenvalues, are
-  computed instead of rejected.
+- `gev` with an indefinite `B` (buckling) is solved as B⁻¹A, since ARPACK needs a positive
+  definite `B`; this also computes `:LI`/`:SI` for a symmetric `A` instead of rejecting them.
 
 ### Changed
 
 - `EigArpack`, `EigArnoldiMethod` and `EigGenericArpack` throw for forwarded keywords the package
-  sets itself (`nev`, `v1`, `stats`, ...). `EigArpack` also throws for complex shifts on real
+  sets itself (`nev`, `v1`, `stats`, `failonmaxiter`, ...). `EigArpack` also throws for complex shifts on real
   problems and for `:LI`/`:SI` with `2nev > n - 2`.
 
 ## v0.2.0
