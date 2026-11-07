@@ -9,6 +9,7 @@ using GenericSchur
 using IterativeSolvers
 using KrylovKit
 using LinearAlgebra
+using Random
 using SparseArrays
 
 # A stiffness matrix with six zero eigenvalues (the rigid body modes) and an otherwise
@@ -231,6 +232,9 @@ end
         # `rand` (not `randn`) block, whose columns all cluster around the all-ones vector.
         X₀ = [cospi(i * j / n) for i in 1:n, j in 1:nev]
 
+        # without `X₀`, LOBPCG starts from `rand` and fails in about 1 of 300 runs
+        lobpcgseed = 1
+
         # `tol` stays clear of 1e-9, where LOBPCG's Rayleigh-Ritz subproblem starts to fail
         # with a `PosDefException` once the search space becomes numerically rank deficient.
         lobpcgsolver(; kwargs...) = EigLOBPCG(; tol = 1.0e-8, maxiter = 500, kwargs...)
@@ -244,6 +248,7 @@ end
                 EigGenericArpack(; which = :LR),
                 EigGenericArpack(; which = :LM),
             )
+            Random.seed!(lobpcgseed)
             λ, ϕ, converged, numops = l(A, nev)
             by, rev = EigenValueSolvers.ordering(l.which)
             exact = sort(spectrum; by = by, rev = rev)[1:nev]
@@ -268,6 +273,7 @@ end
                 lobpcgsolver(; which = :SR, X₀ = X₀),
                 EigGenericArpack(; which = :SR),
             )
+            Random.seed!(lobpcgseed)
             λ, ϕ, converged, numops = gev(l, A, B, nev)
 
             @test converged isa Bool
