@@ -46,7 +46,7 @@ end
 
 # `Arpack.eigs(A, B; sigma)` swaps :LM and :SM for generalized problems by default. The
 # symmetric case is therefore solved with `explicittransform = :none`, all others with the
-# shift-invert transformation (A - σB)⁻¹B applied explicitly. Their eigenvalues are complex.
+# shift-invert transformation (A - σB)⁻¹B applied explicitly.
 function shiftinvert(A, B, σ, nev::Int, kwargs)
     isreal = eltype(A) <: Real && eltype(B) <: Real
     @argcheck !isreal || σ isa Real "complex shifts are not supported for real problems"

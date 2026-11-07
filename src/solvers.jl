@@ -140,9 +140,8 @@ end
 function EigArnoldiMethod(;
         sigma = nothing, which::Symbol = :LR, x₀ = nothing, factorize = lu, kwargs...
     )
-    return EigArnoldiMethod(
-        sigma, checktarget(EigArnoldiMethod, which), checkreserved(EigArnoldiMethod, kwargs, (:nev, :v1)), x₀, factorize
-    )
+    kwargs = checkreserved(EigArnoldiMethod, kwargs, (:nev, :v1))
+    return EigArnoldiMethod(sigma, checktarget(EigArnoldiMethod, which), kwargs, x₀, factorize)
 end
 
 backend(::EigArnoldiMethod) = :ArnoldiMethod
@@ -308,7 +307,8 @@ struct EigGenericArpack{Tkw} <: AbstractIterativeEigenSolver
 end
 
 function EigGenericArpack(; which::Symbol = :LR, kwargs...)
-    return EigGenericArpack(checktarget(EigGenericArpack, which), checkreserved(EigGenericArpack, kwargs, (:stats, :ritzvec, :failonmaxiter)))
+    reserved = (:stats, :ritzvec, :failonmaxiter)
+    return EigGenericArpack(checktarget(EigGenericArpack, which), checkreserved(EigGenericArpack, kwargs, reserved))
 end
 
 supportedtargets(::Type{<:EigGenericArpack}) = (:LM, :SM, :LR, :SR)

@@ -13,8 +13,8 @@
 ### Changed
 
 - `EigArpack`, `EigArnoldiMethod` and `EigGenericArpack` throw for forwarded keywords the package
-  sets itself (`nev`, `v1`, `stats`, `failonmaxiter`, ...). `EigArpack` also throws for complex shifts on real
-  problems and for `:LI`/`:SI` with `2nev > n - 2`.
+  sets itself (`nev`, `v1`, `stats`, `failonmaxiter`, ...). `EigArpack` also throws for complex
+  shifts on real problems, for `:LI`/`:SI` with `2nev > n - 2` and for a singular `B` without shift.
 
 ## v0.2.0
 
