@@ -120,6 +120,16 @@ function checktarget(T::Type{<:AbstractEigenSolver}, which::Symbol)
     return which
 end
 
+# Forwarded kwargs are splatted last into the backend call, so a key the extension sets itself
+# would silently override it.
+function checkreserved(T::Type{<:AbstractEigenSolver}, kwargs, reserved)
+    bad = filter(in(reserved), collect(keys(kwargs)))
+    isempty(bad) || throw(
+        ArgumentError("$(nameof(T)) sets $(join(("`$k`" for k in bad), ", ")) itself, it cannot be passed as a keyword")
+    )
+    return kwargs
+end
+
 # Eigenvectors are stored either as the columns of a matrix or as a vector of vectors.
 selectvectors(ϕ::AbstractMatrix, idx) = ϕ[:, idx]
 selectvectors(ϕ::AbstractVector, idx) = ϕ[idx]
@@ -218,3 +228,33 @@ The fallback throws, either because the package extension providing the backend 
 not loaded, or because `l` does not support generalized eigenvalue problems at all.
 """
 geneigsolve(l::AbstractEigenSolver, A, B, nev::Int; kwargs...) = missingbackend(l, "generalized eigenvalue problems")
+
+"""
+    ShiftInvert(F, B, n, tmp)
+
+The linear map `x -> F \\ (B * x)`, with `B === nothing` standing for the identity, where
+`F` is a factorization of `A - σ⋅B` (or `σ⋅I - A`). This implements just enough of the array
+interface (`eltype`, `size`, `issymmetric` and `mul!`) for the iterative backends
+(`ArnoldiMethod.partialschur`, `Arpack.eigs`), which saves a dependency on a dedicated linear
+map package.
+"""
+struct ShiftInvert{T, TF, TB}
+    F::TF
+    B::TB
+    n::Int
+    tmp::Vector{T}
+end
+
+Base.eltype(::ShiftInvert{T}) where {T} = T
+Base.size(op::ShiftInvert) = (op.n, op.n)
+Base.size(op::ShiftInvert, i::Int) = i ≤ 2 ? op.n : 1
+
+# `F⁻¹B` is in general not symmetric, even if `A` and `B` are.
+LinearAlgebra.issymmetric(::ShiftInvert) = false
+
+LinearAlgebra.mul!(y, op::ShiftInvert{T, TF, Nothing}, x) where {T, TF} = ldiv!(y, op.F, x)
+
+function LinearAlgebra.mul!(y, op::ShiftInvert, x)
+    mul!(op.tmp, op.B, x)
+    return ldiv!(y, op.F, op.tmp)
+end

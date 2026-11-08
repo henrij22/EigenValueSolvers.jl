@@ -32,16 +32,35 @@ end
 
 """
     EigArpack(sigma = nothing, which = :LR; kwargs...)
+    EigArpack(; sigma = nothing, which = :LR, kwargs...)
 
 Iterative eigen solver based on [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl).
 Requires `using Arpack`.
 
+`sigma` and `which` can be given positionally or as keywords, and must agree if both are given.
+
 If `sigma` is given, the shift-invert method `(J - sigma⋅I)⁻¹` is used and the `nev`
 eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
-which they are returned. Without a shift, `which` selects the eigenvalues as documented in
-[`TARGETS`](@ref).
+which they are returned. `EigArpack(; sigma = 0.0, which = :SR)` therefore gives the smallest
+eigenvalues only if the spectrum is positive, e.g. for a stiffness matrix. Use a slightly
+negative shift if it has rigid body modes. Without a shift, `which` selects the eigenvalues as
+documented in [`TARGETS`](@ref), but ARPACK converges poorly for the smallest ones (`:SM`, and
+`:SR` for generalized problems), so prefer a shift for them.
 
-Additional `kwargs` are forwarded to `Arpack.eigs`.
+For real problems, `:LI`/`:SI` throw if all eigenvalues are real, i.e. for a symmetric problem
+(with positive definite `B` if generalized), and they need `2nev ≤ n - 2`.
+
+The eigenvalues are real for symmetric problems, also for generalized ones with a shift if `B`
+is positive definite. For other real problems they are real if all computed ones are, and complex
+otherwise, so the element type can depend on the data.
+
+Symmetry and definiteness are tested exactly (`issymmetric`, `isposdef`), so matrices that are
+symmetric only up to roundoff are treated as nonsymmetric. If `B` is not positive definite,
+B⁻¹A is solved instead, since ARPACK's generalized modes require it. This throws if `B` is
+singular, use a shift then.
+
+Additional `kwargs` are forwarded to `Arpack.eigs`, except for `nev`, `ritzvec` and
+`explicittransform`, which are set by the solver.
 
 Supports the generalized eigenvalue problem through [`gev`](@ref).
 """
@@ -56,8 +75,14 @@ struct EigArpack{Tsigma, Tkw} <: AbstractIterativeEigenSolver
     kwargs::Tkw
 end
 
-function EigArpack(sigma = nothing, which::Symbol = :LR; kwargs...)
-    return EigArpack(sigma, checktarget(EigArpack, which), kwargs)
+function EigArpack(
+        sigma_pos = nothing, which_pos::Union{Nothing, Symbol} = nothing;
+        sigma = sigma_pos, which::Symbol = something(which_pos, :LR), kwargs...
+    )
+    @argcheck isnothing(sigma_pos) || sigma == sigma_pos "`sigma` given positionally and as a keyword"
+    @argcheck isnothing(which_pos) || which == which_pos "`which` given positionally and as a keyword"
+    reserved = (:nev, :ritzvec, :explicittransform)
+    return EigArpack(sigma, checktarget(EigArpack, which), checkreserved(EigArpack, kwargs, reserved))
 end
 
 backend(::EigArpack) = :Arpack
@@ -115,6 +140,7 @@ end
 function EigArnoldiMethod(;
         sigma = nothing, which::Symbol = :LR, x₀ = nothing, factorize = lu, kwargs...
     )
+    kwargs = checkreserved(EigArnoldiMethod, kwargs, (:nev, :v1))
     return EigArnoldiMethod(sigma, checktarget(EigArnoldiMethod, which), kwargs, x₀, factorize)
 end
 
@@ -281,7 +307,8 @@ struct EigGenericArpack{Tkw} <: AbstractIterativeEigenSolver
 end
 
 function EigGenericArpack(; which::Symbol = :LR, kwargs...)
-    return EigGenericArpack(checktarget(EigGenericArpack, which), kwargs)
+    reserved = (:stats, :ritzvec, :failonmaxiter)
+    return EigGenericArpack(checktarget(EigGenericArpack, which), checkreserved(EigGenericArpack, kwargs, reserved))
 end
 
 supportedtargets(::Type{<:EigGenericArpack}) = (:LM, :SM, :LR, :SR)

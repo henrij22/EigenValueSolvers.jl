@@ -1,19 +1,84 @@
 module EigenValueSolversArpackExt
 
 using ArgCheck: @argcheck
-using EigenValueSolvers: EigenValueSolvers, EigArpack, sortselect
+using EigenValueSolvers: EigenValueSolvers, EigArpack, ShiftInvert, sortselect
+using LinearAlgebra: LinearAlgebra, isposdef, issuccess, issymmetric, lu
 
 import Arpack
+
+# ARPACK sorts :LI/:SI of real problems by |imag| (dsortc). The spectrum is symmetric to the
+# real axis, so the 2nev eigenvalues of largest |imag| contain the wanted ones and
+# `sortselect` picks them. That fails if 2nev had to be cut at the n - 2 ARPACK can compute.
+# With fewer than nev complex pairs, ties at imag = 0 are resolved arbitrarily.
+# `false` for complex matrices, where ARPACK handles :LI/:SI natively.
+isrealimag(which::Symbol, matrices...) = which in (:LI, :SI) && all(M -> eltype(M) <: Real, matrices)
+
+function imagnev(nev::Int, n::Int)
+    2nev ≤ n - 2 || throw(
+        ArgumentError(
+            "EigArpack needs 2nev ≤ n - 2 for `:LI`/`:SI` of real problems, got nev = $nev for " *
+                "n = $n, use `EigDefault` for problems this small"
+        )
+    )
+    return 2nev
+end
+
+symmetricimag(which::Symbol) = ArgumentError(
+    "EigArpack: the target `:$which` is meaningless for a real symmetric problem " *
+        "(with positive definite `B` if generalized), all its eigenvalues are real"
+)
+
+# Real problems with only real eigenvalues come back from ARPACK with a zero imaginary part.
+function realify(λ, ϕ, matrices...)
+    all(M -> eltype(M) <: Real, matrices) && all(isreal, λ) && all(isreal, ϕ) && return real.(λ), real.(ϕ)
+    return λ, ϕ
+end
+
+# The generalized modes of ARPACK need a positive definite `B`, so solve B⁻¹A⋅x = λ⋅x instead.
+function inverseB(A, B, which::Symbol, nev::Int, kwargs)
+    n = size(A, 1)
+    F = lu(B; check = false)
+    issuccess(F) || throw(ArgumentError("EigArpack: `B` is singular, use a shift `sigma`"))
+    op = ShiftInvert(F, A, n, Vector{promote_type(eltype(A), eltype(B))}(undef, n))
+    λ, ϕ, nconv, _, nmult = Arpack.eigs(op; nev = nev, which = which, kwargs...)
+    return realify(λ, ϕ, A, B)..., nconv, nmult
+end
+
+# `Arpack.eigs(A, B; sigma)` swaps :LM and :SM for generalized problems by default. The
+# symmetric case is therefore solved with `explicittransform = :none`, all others with the
+# shift-invert transformation (A - σB)⁻¹B applied explicitly.
+function shiftinvert(A, B, σ, nev::Int, kwargs)
+    isreal = eltype(A) <: Real && eltype(B) <: Real
+    @argcheck !isreal || σ isa Real "complex shifts are not supported for real problems"
+    if isreal && issymmetric(A) && isposdef(B)
+        λ, ϕ, nconv, _, nmult = Arpack.eigs(
+            A, B; nev = nev, which = :LM, sigma = σ, explicittransform = :none, kwargs...
+        )
+        return λ, ϕ, nconv, nmult
+    end
+    M = A - σ * B
+    n = size(A, 1)
+    op = ShiftInvert(lu(M), B, n, Vector{eltype(M)}(undef, n))
+    μ, ϕ, nconv, _, nmult = Arpack.eigs(op; nev = nev, which = :LM, kwargs...)
+    return realify((@. σ + inv(μ)), ϕ, A, B)..., nconv, nmult
+end
 
 function EigenValueSolvers.eigsolve(l::EigArpack, J, nev::Int; kwargs...)
     @argcheck J isa AbstractMatrix
     n = min(nev, size(J, 1))
 
-    # In shift-invert mode the target refers to the transformed problem, where the
-    # eigenvalues closest to `sigma` are the dominant ones. `l.which` is applied afterwards.
-    which = isnothing(l.sigma) ? l.which : :LM
+    if !isnothing(l.sigma)
+        # In shift-invert mode the target refers to the transformed problem, where the
+        # eigenvalues closest to `sigma` are the dominant ones. `l.which` is applied afterwards.
+        which, narpack = :LM, n
+    elseif isrealimag(l.which, J)
+        issymmetric(J) && throw(symmetricimag(l.which))
+        which, narpack = :LI, imagnev(n, size(J, 1))
+    else
+        which, narpack = l.which, n
+    end
 
-    λ, ϕ, nconv, _, nmult = Arpack.eigs(J; nev = n, which = which, sigma = l.sigma, l.kwargs...)
+    λ, ϕ, nconv, _, nmult = Arpack.eigs(J; nev = narpack, which = which, sigma = l.sigma, l.kwargs...)
     nconv < n && @warn "only $nconv of the $n requested eigenvalues converged using Arpack.eigs"
 
     values, vectors = sortselect(λ, ϕ, n, l.which)
@@ -25,9 +90,19 @@ function EigenValueSolvers.geneigsolve(l::EigArpack, A, B, nev::Int; kwargs...)
     @argcheck B isa AbstractMatrix
     n = min(nev, size(A, 1))
 
-    which = isnothing(l.sigma) ? l.which : :LM
-
-    λ, ϕ, nconv, _, nmult = Arpack.eigs(A, B; nev = n, which = which, sigma = l.sigma, l.kwargs...)
+    if !isnothing(l.sigma)
+        λ, ϕ, nconv, nmult = shiftinvert(A, B, l.sigma, n, l.kwargs)
+    elseif !isposdef(B)
+        which, narpack = isrealimag(l.which, A, B) ? (:LI, imagnev(n, size(A, 1))) : (l.which, n)
+        λ, ϕ, nconv, nmult = inverseB(A, B, which, narpack, l.kwargs)
+    else
+        which, narpack = l.which, n
+        if isrealimag(l.which, A, B)
+            issymmetric(A) && throw(symmetricimag(l.which))
+            which, narpack = :LI, imagnev(n, size(A, 1))
+        end
+        λ, ϕ, nconv, _, nmult = Arpack.eigs(A, B; nev = narpack, which = which, l.kwargs...)
+    end
     nconv < n && @warn "only $nconv of the $n requested eigenvalues converged using Arpack.eigs"
 
     values, vectors = sortselect(λ, ϕ, n, l.which)

@@ -50,6 +50,19 @@ end
         @test_throws ArgumentError EigKrylovKit(; which = :XX)
         @test_throws ArgumentError EigLOBPCG(; which = :XX)
         @test_throws ArgumentError EigGenericArpack(; which = :XX)
+
+        # keywords the backend call sets itself
+        @test_throws ArgumentError EigArpack(; nev = 3)
+        @test_throws ArgumentError EigArpack(nothing, :LR; ritzvec = false)
+        @test_throws ArgumentError EigArpack(; explicittransform = :none)
+        @test_throws ArgumentError EigArpack(1.0; sigma = 2.0)
+        @test_throws ArgumentError EigArpack(nothing, :SR; which = :LR)
+        @test EigArpack(1.0; sigma = 1.0).sigma == 1.0
+        @test_throws ArgumentError EigArnoldiMethod(; v1 = ones(3))
+        @test_throws ArgumentError EigArnoldiMethod(; nev = 3)
+        @test_throws ArgumentError EigGenericArpack(; stats = nothing)
+        @test_throws ArgumentError EigGenericArpack(; failonmaxiter = true)
+        @test EigArpack(; maxiter = 10).kwargs[:maxiter] == 10
     end
 
     @testset "supported targets" begin
@@ -289,6 +302,132 @@ end
         # LOBPCG is unstable for matrices that are small relative to the block size
         @test_throws ArgumentError EigLOBPCG()(withspectrum(1.0:3.0, 1.0:3.0), 2)
         @test_throws ArgumentError EigLOBPCG(; X₀ = ones(6, 3))(withspectrum(1.0:6.0, 1.0:6.0), 1)
+    end
+
+    @testset "Arpack honours every target" begin
+        # complex conjugate pairs and real eigenvalues, distinct in real part, imag part and abs
+        m = 10
+        pairs = [complex(-2.0 + 0.45k, 0.3k + 0.02k^2) for k in 1:m]
+        reals = [-3.1 + 0.73k for k in 1:m]
+        D = zeros(3m, 3m)
+        for (k, z) in enumerate(pairs)
+            D[(2k - 1):2k, (2k - 1):2k] = [real(z) imag(z); -imag(z) real(z)]
+        end
+        for (k, r) in enumerate(reals)
+            D[2m + k, 2m + k] = r
+        end
+        w = normalize(sqrt.(1.0:(3m)))
+        Q = I - 2 * w * transpose(w)
+        A = Q * D * transpose(Q)
+        spectrum = vcat(pairs, conj.(pairs), reals)
+        nev = 4
+
+        for which in EigenValueSolvers.TARGETS
+            by, rev = EigenValueSolvers.ordering(which)
+            expected = by.(sort(spectrum; by = by, rev = rev)[1:nev])
+            λ, _, converged, _ = EigArpack(nothing, which; maxiter = 1000)(A, nev)
+            @test converged
+            @test by.(λ) ≈ expected atol = 1.0e-8
+
+            # ARPACK's "SM" mode is unreliable for generalized problems
+            which === :SM && continue
+            d = 1.0 .+ (1:(3m)) ./ (3m)
+            λ, _, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Diagonal(d) * A, Matrix(Diagonal(d)), nev)
+            @test converged
+            @test by.(λ) ≈ expected atol = 1.0e-8
+        end
+
+        S = withspectrum(1.0:20, 1.0:20)
+        @test_throws ArgumentError EigArpack(nothing, :LI)(S, 2)
+        @test_throws ArgumentError EigArpack(nothing, :SI)(S, 2)
+
+        # `sigma`/`which` as keywords must not end up in the kwargs for `Arpack.eigs`
+        l = EigArpack(; sigma = 0.0, which = :SR, maxiter = 500)
+        @test l.sigma == 0.0
+        @test l.which === :SR
+        @test NamedTuple(l.kwargs) == (; maxiter = 500)
+        @test EigArpack(which = :SR).which === :SR
+
+        # ARPACK computes at most n - 2 eigenvalues, :LI/:SI of a real problem need twice nev
+        @test_throws ArgumentError EigArpack(nothing, :LI)(A, 15)
+        @test length(EigArpack(nothing, :LI)(A, 14)[1]) == 14
+
+        # the second `B` is indefinite
+        n = 30
+        Ks = withspectrum(1.0:n, sqrt.(1.0:n))
+        for B in (Matrix(Diagonal(1.0 .+ (1:n) ./ n)), Matrix(Diagonal([isodd(i) ? 1.0 : -2.0 for i in 1:n])))
+            exact = eigvals(Ks, B)
+            for σ in (0.0, 4.2, -3.7)
+                λ, ϕ, converged, _ = gev(EigArpack(σ, :LR), Ks, B, 3)
+                @test converged
+                @test sort(real.(λ)) ≈ sort(real.(sort(exact; by = x -> abs(x - σ))[1:3]))
+                @test issorted(real.(λ); rev = true)
+                for i in 1:3
+                    @test Ks * ϕ[:, i] ≈ λ[i] * (B * ϕ[:, i])
+                end
+                isposdef(B) && @test eltype(λ) <: Real
+            end
+        end
+        # unshifted targets with an indefinite `B`
+        Bi = Matrix(Diagonal([isodd(i) ? 1.0 : -2.0 for i in 1:n]))
+        exact = eigvals(Ks, Bi)
+        for which in (:LR, :LM)
+            by, rev = EigenValueSolvers.ordering(which)
+            λ, ϕ, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Ks, Bi, 3)
+            @test converged
+            @test eltype(λ) <: Real
+            @test by.(λ) ≈ by.(sort(exact; by = by, rev = rev)[1:3])
+            @test Ks * ϕ[:, 1] ≈ λ[1] * (Bi * ϕ[:, 1])
+        end
+
+        Bs = Matrix(Diagonal([i == 1 ? 0.0 : -1.0 for i in 1:n]))
+        @test_throws ArgumentError gev(EigArpack(nothing, :LR), Ks, Bs, 3)
+
+        # nonsymmetric `A` with a shift, and complex matrices
+        B = Matrix(Diagonal(1.0 .+ (1:n) ./ n))
+        zs = [complex(0.5k, (-1)^k * (0.2k + 0.01k^2)) for k in 1:n]
+        Vc = Matrix(qr(complex.(cos.((1:n) * (1:n)'), sin.((1:n) * (1:n)'))).Q)
+        Ac = B * (Vc * Diagonal(zs) * Vc')
+        An = A
+        for M in (An, Ac)
+            exact = eigvals(M, B)
+            λ, _, converged, _ = gev(EigArpack(4.2, :LR; maxiter = 1000), M, B, 3)
+            @test converged
+            @test sort(λ; by = reim) ≈ sort(sort(exact; by = x -> abs(x - 4.2))[1:3]; by = reim)
+        end
+        for which in (:LI, :SI)
+            by, rev = EigenValueSolvers.ordering(which)
+            λ, _, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Ac, B, 3)
+            @test converged
+            @test imag.(λ) ≈ imag.(sort(eigvals(Ac, B); by = by, rev = rev)[1:3])
+        end
+        @test_throws ArgumentError gev(EigArpack(1.0im, :LR), Ks, Matrix(Diagonal(1.0 .+ (1:n) ./ n)), 3)
+
+        # all eigenvalues are real for a symmetric `A` and a positive definite `B`
+        @test_throws ArgumentError gev(EigArpack(nothing, :LI), Ks, Matrix(Diagonal(1.0 .+ (1:n) ./ n)), 2)
+
+        # a symmetric `A` with an indefinite `B`, as in buckling, has complex eigenvalues ±i⋅c
+        npairs, nreal = 5, 20
+        np = 2npairs + nreal
+        Ap, Bp = zeros(np, np), zeros(np, np)
+        for k in 1:npairs
+            i = 2k - 1
+            Ap[i:(i + 1), i:(i + 1)] = (k / 2) * [0 1; 1 0]
+            Bp[i:(i + 1), i:(i + 1)] = [1 0; 0 -1]
+        end
+        for j in 1:nreal
+            Ap[2npairs + j, 2npairs + j] = 1 + j
+            Bp[2npairs + j, 2npairs + j] = isodd(j) ? 1.0 : -2.0
+        end
+        wp = normalize(sqrt.(1.0:np))
+        Qp = I - 2 * wp * transpose(wp)
+        Ap, Bp = Matrix(Symmetric(transpose(Qp) * Ap * Qp)), Matrix(Symmetric(transpose(Qp) * Bp * Qp))
+        @test !isposdef(Bp)
+        for (which, expected) in ((:LI, [2.5, 2.0, 1.5]), (:SI, [-2.5, -2.0, -1.5]))
+            λ, _, converged, _ = gev(EigArpack(nothing, which; maxiter = 1000), Ap, Bp, 3)
+            @test converged
+            @test imag.(λ) ≈ expected atol = 1.0e-8
+        end
     end
 
     @testset "custom factorization" begin
