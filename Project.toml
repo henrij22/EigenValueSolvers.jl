@@ -1,6 +1,6 @@
 name = "EigenValueSolvers"
 uuid = "61c3bbe5-5a69-4256-958a-2912b3f39d32"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Henrik Jakob <jakob@ibb.uni-stuttgart.de> and contributors"]
 
 [workspace]

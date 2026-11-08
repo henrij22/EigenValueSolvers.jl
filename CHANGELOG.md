@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.2.1
+
 ### Fixed
 
 - `EigArpack` returned wrong eigenvalues for `:LI`/`:SI` of real nonsymmetric problems (ARPACK
