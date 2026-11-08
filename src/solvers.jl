@@ -2,7 +2,7 @@
     EigDefault(which = :LR)
     EigDefault(; which = :LR)
 
-Direct eigen solver based on `LinearAlgebra.eigen`. It computes the *full* spectrum and then
+Direct eigen solver based on `LinearAlgebra.eigen`. It computes the full spectrum and then
 returns the `nev` eigenpairs selected by `which` (one of [`TARGETS`](@ref)). Sparse matrices
 are converted to dense ones first, so this solver is meant for small problems and as a
 reference for the iterative solvers.
@@ -43,12 +43,12 @@ Requires `using Arpack`.
 `sigma` and `which` can be given positionally or as keywords, and must agree if both are given.
 
 If `sigma` is given, the shift-invert method `(J - sigma⋅I)⁻¹` is used and the `nev`
-eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
-which they are returned. `EigArpack(; sigma = 0.0, which = :SR)` therefore gives the smallest
-eigenvalues only if the spectrum is positive, e.g. for a stiffness matrix. Use a slightly
-negative shift if it has rigid body modes. Without a shift, `which` selects the eigenvalues as
-documented in [`TARGETS`](@ref), but ARPACK converges poorly for the smallest ones (`:SM`, and
-`:SR` for generalized problems), so prefer a shift for them.
+eigenvalues closest to `sigma` are computed. `which` then only sets the order of the result.
+`EigArpack(; sigma = 0.0, which = :SR)` therefore gives the smallest eigenvalues only if the
+spectrum is positive, e.g. for a stiffness matrix. Use a slightly negative shift if it has rigid
+body modes. Without a shift, `which` selects the eigenvalues as documented in
+[`TARGETS`](@ref), but ARPACK converges poorly for the smallest ones (`:SM`, and `:SR` for
+generalized problems), so prefer a shift for them.
 
 For real problems, `:LI`/`:SI` throw if all eigenvalues are real, i.e. for a symmetric problem
 (with positive definite `B` if generalized), and they need `2nev ≤ n - 2`.
@@ -98,13 +98,11 @@ Iterative eigen solver based on
 `using ArnoldiMethod`.
 
 If `sigma` is given, the shift-invert method `(sigma⋅I - J)⁻¹` is used and the `nev`
-eigenvalues *closest to* `sigma` are computed; `which` then only determines the order in
-which they are returned. Without a shift, `which` selects the eigenvalues as documented in
-[`TARGETS`](@ref).
+eigenvalues closest to `sigma` are computed. `which` then only sets the order of the result.
+Without a shift, `which` selects the eigenvalues as documented in [`TARGETS`](@ref).
 
-The `factorize` function is what turns the shifted matrix into something that can be solved
-against; see the field documentation below for how to plug in a different sparse direct
-solver.
+The shifted matrix is factorized with the `factorize` function. See the field documentation
+below for how to use a different sparse direct solver.
 
 Additional `kwargs` are forwarded to `ArnoldiMethod.partialschur`.
 
@@ -128,14 +126,12 @@ struct EigArnoldiMethod{Tsigma, Tkw, Tvec, Tfac} <: AbstractIterativeEigenSolver
     Function used to factorize the shifted matrix, defaults to `LinearAlgebra.lu`.
 
     It is called as `factorize(M)` and its result `F` only has to support
-    `LinearAlgebra.ldiv!(y, F, x)`, so any of the following works:
+    `LinearAlgebra.ldiv!(y, F, x)`. Examples:
 
-    - `cholesky`, if the shifted matrix is known to be positive definite
-    - `qr`, for the rank-deficient case
-    - `M -> MUMPS.Mumps(M)` or a `Pardiso.jl` wrapper for large sparse problems,
-      where the SuiteSparse `lu` becomes the bottleneck
-    - any closure returning a preconditioner-like object, e.g. to reuse a factorization
-      across several solver calls
+    - `cholesky`, if the shifted matrix is positive definite
+    - a wrapper around another sparse direct solver (e.g. Pardiso.jl or MUMPS.jl) for
+      large problems
+    - a closure returning a cached factorization, to reuse it across solver calls
     """
     factorize::Tfac
 end
@@ -155,10 +151,9 @@ backend(::EigArnoldiMethod) = :ArnoldiMethod
 Matrix-free iterative eigen solver based on
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl). Requires `using KrylovKit`.
 
-In contrast to the other solvers, `J` does not have to be an `AbstractMatrix`: any object
-`J` for which `J * x` is defined works, in which case a starting vector `x₀` has to be
-supplied. The eigenvectors are then returned as a vector of vectors, use
-[`geteigenvector`](@ref) to access them.
+Unlike the other solvers, `J` does not have to be an `AbstractMatrix`. Any object that
+supports `J * x` works, but then a starting vector `x₀` is required. The eigenvectors are
+returned as a vector of vectors, use [`geteigenvector`](@ref) to access them.
 
 Supports the generalized eigenvalue problem through [`gev`](@ref), which requires `B` to be
 positive definite and `ishermitian` and `isposdef` to be set. `A` and `B` may be arbitrary
@@ -224,25 +219,24 @@ Iterative eigen solver based on the LOBPCG implementation of
 [IterativeSolvers.jl](https://github.com/JuliaLinearAlgebra/IterativeSolvers.jl). Requires
 `using IterativeSolvers`.
 
-LOBPCG is restricted to *symmetric/hermitian* problems, and to a positive definite `B` in
-the generalized case, but in exchange it converges on the smallest eigenvalues without any
-factorization of the matrix. That makes it the solver of choice for large sparse problems
-where the shift-invert methods of [`EigArpack`](@ref) and [`EigArnoldiMethod`](@ref) run out
-of memory, especially in combination with a preconditioner `P`.
+LOBPCG only handles symmetric or hermitian problems, with a positive definite `B` in the
+generalized case. It computes the smallest eigenvalues without factorizing the matrix. This
+makes it useful for large sparse problems where the shift-invert methods of
+[`EigArpack`](@ref) and [`EigArnoldiMethod`](@ref) run out of memory, ideally with a
+preconditioner `P`.
 
 Because LOBPCG selects eigenvalues by algebraic value, only the targets `:LR` and `:SR` are
 supported, see [`supportedtargets`](@ref).
 
 The matrix has to be at least three times as large as the block size (`nev`, or the width of
-`X₀`), otherwise LOBPCG is unstable and throws; use [`EigDefault`](@ref) for problems that
-small.
+`X₀`), otherwise LOBPCG is unstable and throws. Use [`EigDefault`](@ref) for such small
+problems.
 
-Two numerical caveats are worth knowing about. Asking for a very tight `tol` is
-counterproductive: below roughly `1e-9` the Rayleigh-Ritz subproblem tends to fail with a
-`PosDefException` once the search space becomes numerically rank deficient. And without an
-explicit `X₀`, LOBPCG starts from a `rand` block whose columns all cluster around the
-all-ones vector, which is poorly conditioned and makes the iteration depend on the global
-random stream; pass `X₀` when you want a reproducible run.
+Two numerical caveats: a very tight `tol` (below roughly `1e-9`) often makes the
+Rayleigh-Ritz step fail with a `PosDefException`, because the search space becomes
+numerically rank deficient. And without an explicit `X₀`, LOBPCG starts from a `rand` block.
+Its columns are all close to the all-ones vector, which is poorly conditioned, and the
+result depends on the global random number generator. Pass `X₀` for reproducible runs.
 
 Supports the generalized eigenvalue problem through [`gev`](@ref).
 """
@@ -287,14 +281,13 @@ Iterative eigen solver based on
 [GenericArpack.jl](https://github.com/dgleich/GenericArpack.jl), a pure Julia translation of
 ARPACK. Requires `using GenericArpack`.
 
-Compared to [`EigArpack`](@ref) this needs no compiled ARPACK library, and it is not
-restricted to the four BLAS element types: it runs in `Float32`, `BigFloat` or any other
-`AbstractFloat`, which makes it useful whenever the problem is too ill-conditioned for
-double precision.
+Compared to [`EigArpack`](@ref), it needs no compiled ARPACK library and is not restricted to
+the four BLAS element types. It runs in `Float32`, `BigFloat` or any other `AbstractFloat`,
+which helps when a problem is too ill-conditioned for double precision.
 
-The implementation only covers *symmetric/hermitian* problems, so `:LI` and `:SI` are not
-supported, see [`supportedtargets`](@ref). It also has no shift, use [`EigArpack`](@ref) or
-[`EigArnoldiMethod`](@ref) if you need the shift-invert method.
+It only handles symmetric or hermitian problems, so `:LI` and `:SI` are not supported, see
+[`supportedtargets`](@ref). It also has no shift. Use [`EigArpack`](@ref) or
+[`EigArnoldiMethod`](@ref) for the shift-invert method.
 
 Additional `kwargs` are forwarded to `GenericArpack.symeigs`.
 

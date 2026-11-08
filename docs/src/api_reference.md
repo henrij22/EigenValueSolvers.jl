@@ -16,8 +16,8 @@ supportedtargets
 
 ## Not exported
 
-These have to be qualified with `EigenValueSolvers.`. Apart from [`TARGETS`](@ref), they are
-not part of the public interface, but they are what a new solver has to hook into.
+These have to be qualified with `EigenValueSolvers.`. Except for [`TARGETS`](@ref), they are
+not part of the public interface, but a new solver builds on them.
 
 ```@docs
 TARGETS
