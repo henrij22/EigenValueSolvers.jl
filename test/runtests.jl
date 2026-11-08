@@ -479,4 +479,23 @@ end
         @test_throws ArgumentError UnbackedSolver()(rand(2, 2), 1)
         @test_throws ArgumentError gev(UnbackedSolver(), rand(2, 2), rand(2, 2), 1)
     end
+
+    @testset "matrix-free operator for a matrix-based solver" begin
+        f = x -> 2x
+        M = Matrix(1.0I, 4, 4)
+        solvers = (EigDefault(), EigArpack(), EigArnoldiMethod(), EigLOBPCG(), EigGenericArpack())
+        for l in solvers
+            @test_throws ArgumentError l(f, 1)
+            @test_throws ArgumentError gev(l, f, M, 1)
+            @test_throws ArgumentError gev(l, M, f, 1)
+            msg = try
+                gev(l, M, f, 1)
+            catch e
+                sprint(showerror, e)
+            end
+            @test occursin(string(nameof(typeof(l))), msg)
+            @test occursin(string(typeof(f)), msg)
+            @test occursin("AbstractMFEigenSolver", msg)
+        end
+    end
 end

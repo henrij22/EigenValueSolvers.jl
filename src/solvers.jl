@@ -18,13 +18,16 @@ end
 
 EigDefault(; which::Symbol = :LR) = EigDefault(which)
 
-function eigsolve(l::EigDefault, J, nev::Int; kwargs...)
+eigsolve(l::EigDefault, J, nev::Int; kwargs...) = matrixrequired(l, J)
+geneigsolve(l::EigDefault, A, B, nev::Int; kwargs...) = matrixrequired(l, A, B)
+
+function eigsolve(l::EigDefault, J::AbstractMatrix, nev::Int; kwargs...)
     F = eigen(toarray(J))
     λ, ϕ = sortselect(F.values, F.vectors, nev, l.which)
     return λ, ϕ, length(λ) == min(nev, size(J, 1)), 1
 end
 
-function geneigsolve(l::EigDefault, A, B, nev::Int; kwargs...)
+function geneigsolve(l::EigDefault, A::AbstractMatrix, B::AbstractMatrix, nev::Int; kwargs...)
     F = eigen(toarray(A), toarray(B))
     λ, ϕ = sortselect(F.values, F.vectors, nev, l.which)
     return λ, ϕ, length(λ) == min(nev, size(A, 1)), 1

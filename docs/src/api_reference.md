@@ -27,6 +27,7 @@ EigenValueSolvers.checktarget
 EigenValueSolvers.sortselect
 EigenValueSolvers.ordering
 EigenValueSolvers.backend
+EigenValueSolvers.matrixrequired
 ```
 
 ## Index

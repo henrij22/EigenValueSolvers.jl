@@ -206,6 +206,23 @@ function missingbackend(l::AbstractEigenSolver, what::String)
 end
 
 """
+    matrixrequired(l::AbstractEigenSolver, operators...)
+
+Throw an `ArgumentError` saying that `l` only works on matrices. Fallback of the solvers
+that need every operator to be an `AbstractMatrix`.
+"""
+function matrixrequired(l::AbstractEigenSolver, operators...)
+    i = findfirst(op -> !(op isa AbstractMatrix), operators)
+    got = isnothing(i) ? "" : ", got a `$(typeof(operators[i]))`"
+    return throw(
+        ArgumentError(
+            "$(nameof(typeof(l))) only supports matrices (`AbstractMatrix`)$got. Use a " *
+                "matrix-free solver (an `AbstractMFEigenSolver`, e.g. `EigKrylovKit`) instead"
+        )
+    )
+end
+
+"""
     EigenValueSolvers.eigsolve(l::AbstractEigenSolver, J, nev; kwargs...)
 
 The method a solver has to implement for the standard eigenvalue problem `J⋅x = λ⋅x`. It is
