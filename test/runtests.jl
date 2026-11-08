@@ -20,6 +20,10 @@ const REFERENCE = sort(eigvals(Symmetric(Matrix(K))))
 # A solver without any backend, used to check the error path of the package extensions.
 struct UnbackedSolver <: AbstractEigenSolver end
 
+# backend package that is never loaded
+struct UnloadedBackendSolver <: AbstractEigenSolver end
+EigenValueSolvers.backend(::UnloadedBackendSolver) = :NotLoadedBackend
+
 # `K` has eigenvalues of multiplicity two, and a Krylov method may well return only one copy
 # of such a pair. Comparing element by element against `REFERENCE` would therefore be flaky,
 # so we only check that every computed eigenvalue is in the spectrum.
@@ -478,6 +482,15 @@ end
 
         @test_throws ArgumentError UnbackedSolver()(rand(2, 2), 1)
         @test_throws ArgumentError gev(UnbackedSolver(), rand(2, 2), rand(2, 2), 1)
+
+        @test_throws ArgumentError UnloadedBackendSolver()(rand(2, 2), 1)
+        msg = try
+            gev(UnloadedBackendSolver(), rand(2, 2), rand(2, 2), 1)
+        catch e
+            sprint(showerror, e)
+        end
+        @test occursin("NotLoadedBackend.jl", msg)
+        @test occursin("using NotLoadedBackend", msg)
     end
 
     @testset "matrix-free operator for a matrix-based solver" begin
