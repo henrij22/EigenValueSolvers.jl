@@ -1,6 +1,7 @@
 using EigenValueSolvers
 using Test
 
+using Aqua
 using ArnoldiMethod
 using Arpack
 using DelimitedFiles
@@ -41,6 +42,10 @@ function withspectrum(spectrum, seedvector)
 end
 
 @testset "EigenValueSolvers.jl" begin
+    @testset "Aqua.jl" begin
+        Aqua.test_all(EigenValueSolvers)
+    end
+
     @testset "targets" begin
         for which in EigenValueSolvers.TARGETS
             @test EigDefault(which).which === which
