@@ -1,10 +1,24 @@
-# EigenValueSolvers.jl
+<h1 align="center">EigenValueSolvers.jl</h1>
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://henrij22.github.io/EigenValueSolvers.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://henrij22.github.io/EigenValueSolvers.jl/dev)
-[![Build Status](https://github.com/henrij22/EigenValueSolvers.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/henrij22/EigenValueSolvers.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/henrij22/EigenValueSolvers.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/henrij22/EigenValueSolvers.jl)
-[![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black)](https://github.com/fredrikekre/Runic.jl)
+<p align="center">
+  <strong>A uniform interface to Julia eigenvalue solvers</strong>
+</p>
+
+<p align="center">
+  <a href="https://henrij22.github.io/EigenValueSolvers.jl/stable"><img src="https://img.shields.io/badge/docs-stable-blue.svg" alt="Docs stable"></a>
+  <a href="https://henrij22.github.io/EigenValueSolvers.jl/dev"><img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Docs dev"></a>
+  <a href="https://github.com/henrij22/EigenValueSolvers.jl/actions/workflows/CI.yml"><img src="https://github.com/henrij22/EigenValueSolvers.jl/actions/workflows/CI.yml/badge.svg" alt="Build status"></a>
+  <a href="https://github.com/JuliaTesting/Aqua.jl"><img src="https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg" alt="Aqua QA"></a>
+  <a href="https://github.com/fredrikekre/Runic.jl"><img src="https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black" alt="Code style: Runic"></a>
+</p>
+
+<p align="center">
+  <a href="#installation-not-yet-registered">Installation</a> ·
+  <a href="#development">Development</a> ·
+  <a href="https://henrij22.github.io/EigenValueSolvers.jl/dev">Documentation</a>
+</p>
+
+---
 
 A thin, uniform interface around the eigenvalue solvers of `LinearAlgebra`,
 [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl),
